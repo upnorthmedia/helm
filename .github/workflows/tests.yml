@@ -131,12 +131,11 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         with:
           python-version: "3.12"
+      # Wheels only; the runner image already has the GL libraries the
+      # wheels link against, and --no-render loads no VTK rendering code.
       - name: Install CadQuery
         if: steps.changes.outputs.changed == 'true'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libgl1 libegl1 libxrender1
-          python3 -m pip install --quiet -r case/requirements.txt
+        run: python3 -m pip install --quiet -r case/requirements.txt
       - name: Case tests
         if: steps.changes.outputs.changed == 'true'
         run: python3 -m unittest discover -s case/tests -v
