@@ -83,6 +83,20 @@ CRADLE_INSET = 10.0  # the cradle starts this far behind the module's front edge
 CRADLE_HEADER_GAP = 1.5  # the cradle stops this far in front of the header's socket
 CRADLE_LEG_D = 8.0
 CRADLE_LEGS = ((35.0, 12.0), (110.0, 12.0), (35.0, 52.0), (110.0, 52.0))  # x, v from the module front-left corner
+# Locating tabs around the glass, so the module cannot slide sideways. Each is
+# a separate printed tab pushed into a slot in an arm of the cradle: the
+# cradle prints module side down, so tabs rising toward the face cannot be
+# part of it. The left tab sits behind the USB-C plugs and the front one
+# behind the light holder, clear of the speaker holder.
+CRADLE_TAB_GAP = 0.5  # glass edge to tab: the glass's tolerance plus a print's
+CRADLE_TAB_T = 3.0  # tab thickness, away from the glass
+CRADLE_TAB_TONGUE = 1.5  # the tongue through the arm, flush with the tab's glass side
+CRADLE_TAB_L = 12.0  # along the glass edge
+CRADLE_TAB_TOP = 0.8  # tab top below the face's underside
+CRADLE_TAB_SLOT_CLEAR = 0.1
+# (edge, centre along it from the module's front-left corner); the back
+# edge has one tab each side of the 40-pin header
+CRADLE_TABS = (("right", 35.35), ("back", 26.0), ("back", 116.0), ("left", 60.0), ("front", 92.0))
 
 # ---------------------------------------------------------------------------
 # Keys: Cherry MX on Adafruit NeoKey socket breakouts (4978). Any keycap with a
@@ -221,6 +235,19 @@ BOTTOM_FLANGE = 16.2  # flange length from the outside face
 # ---------------------------------------------------------------------------
 PRINT_INSERT_D = 4.0  # M3 heat-set insert, about 4.6 mm OD x 5.7 mm (ASSUMED: match your inserts)
 PRINT_INSERT_DEPTH = 6.5
+
+# Printed test enclosure: a printed cover and base with the metal parts'
+# split, outside, holes and mounting positions, to fit every part before the
+# metal order. Walls thicken inward, and the face goes back to the metal's
+# thickness wherever a part bears on it, so every part inside sits exactly
+# where it does in the metal case.
+PRINT_WALL = 3.0  # the printed cover's walls and face
+PRINT_BEND_R = 0.5  # inside radius of the printed cover's corners
+PRINT_FLANGE_T = 4.4  # bottom flanges, taking M3 x 4 heat-set inserts in place of the S-M3-0 nuts
+PRINT_SIDE_WALL = 2.2  # base side walls: 0.5 mm clear of the cover's edges
+PRINT_FLOOR = 2.4  # base floor, thickened downward so its top stays where the metal's is
+PRINT_POCKET_GAP = 0.5  # face pockets around the parts that bear on the face
+PRINT_BED = 256.0  # each printed part fits a 256 x 256 mm bed
 
 # ---------------------------------------------------------------------------
 # Test coupon

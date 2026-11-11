@@ -1,4 +1,0 @@
-# TODO
-
-- [investigate] 2026-11-10: option C has no printed test enclosure (the old one was built around face screws), so the captain's F2 "home printer for first tests" is now only the coupon and the small printed parts. A printed cover and base matching the metal split would let the whole deck be fitted before the SendCutSend order (`case/README.md`, Not verified).
-- [investigate] 2026-11-10: nothing locates the LCD-5 sideways in option C except the cradle's foam and pressure (`case/helm_case/printed.py` `cradle`); tabs on the cradle's right and back edges would, if a bench fit shows the module sliding.
