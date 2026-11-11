@@ -97,7 +97,7 @@ A key is lit only when its action applies to the selected item. While you hold a
 
 ### The YES rule
 
-Firstmate does not take a note from a bridge as approval by default. A held YES is only a note in firstmate's inbox until you add a rule to your own firstmate home that tells firstmate to treat a note starting with the deck's exact YES wording as your word for the one PR or decision it names. Without that rule, the note is a message to firstmate, not an approval, and a merge still needs your word in chat. A setup guide with the rule's text is coming. [SECURITY.md](SECURITY.md) explains what such a note can and cannot do.
+Firstmate does not take a note from a bridge as approval by default. A held YES is only a note in firstmate's inbox until you add a rule to your own firstmate home that tells firstmate to treat a note starting with the deck's exact YES wording as your word for the one PR or decision it names. Without that rule, the note is a message to firstmate, not an approval, and a merge still needs your word in chat. [docs/firstmate-setup.md](docs/firstmate-setup.md) has the rule's text to paste, and `python3 -m helm.bridge --doctor` tells you whether your home has it. [SECURITY.md](SECURITY.md) explains what such a note can and cannot do.
 
 ## What it shows
 
