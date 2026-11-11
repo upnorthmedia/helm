@@ -25,7 +25,7 @@ The bridge starts in dry run: notes, focus, and opens are logged, not run. Write
 
 ### What a key press becomes
 
-A held YES, LATER, or HOLD becomes exactly one `fm-inbox.sh note` in your primary firstmate home. The bridge acts only on the item the deck named in the key event, refuses a key for an item that is gone, keeps YES dark on a pull request known to be red or conflicted, and refuses every key while the Mac is locked, reading the lock again right before it acts.
+A held YES, LATER, or HOLD becomes exactly one `fm-inbox.sh note` in your primary firstmate home. The bridge acts only on the item the deck named in the key event, refuses a key for an item that is gone, keeps YES dark on a pull request known to be red or conflicted, and refuses every key while the Mac is locked, reading the lock again right before it acts. A YES on a pull request names the commit the deck showed, so with the YES rule firstmate can refuse the merge if anything was pushed since.
 
 Firstmate does the acting. By default firstmate does not treat a note from a bridge as approval of anything. A YES becomes your word only if you add a rule to your own firstmate home that tells firstmate to treat a note starting with the deck's exact YES wording as your word for the one pull request or decision it names (see [The YES rule](README.md#the-yes-rule)).
 
