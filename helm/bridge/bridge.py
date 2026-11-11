@@ -34,6 +34,7 @@ RECEIPTS_POLL_S = 5.0
 RESEND_S = 2.0
 RESULT_LINGER_S = 120.0
 HOMES_REFRESH_S = 60.0
+RECOVERED_MAX = 5  # replies found at start beyond the one shown, kept to show next
 # Firstmate postures (fm-inbox.sh ready) in which the deck follows away mode:
 # chimes muted, YES / LATER / HOLD locked, SHOW ME still working.
 AWAY_POSTURES = {"away", "quiet"}
@@ -81,6 +82,10 @@ class Bridge:
         self.counts = Counts()
         self.result: Optional[Result] = None
         self.result_at = 0.0
+        self._recovered: list[Result] = []  # replies from while the bridge was down, newest first
+        # PR heads as of the last model sent, and as of each YES hold's start: YES is bound to these.
+        self._shown_heads: dict[str, Optional[str]] = {}
+        self._hold_heads: dict[str, Optional[str]] = {}
         self.seq = 0
         self.hello: Optional[Hello] = None
         self._last_sent: Optional[dict] = None
@@ -191,7 +196,8 @@ class Bridge:
 
     def build_model(self, now: float) -> Model:
         if self.result and self.result.state != "queued" and now - self.result_at > RESULT_LINGER_S:
-            self.result = None
+            self.result = self._recovered.pop(0) if self._recovered else None
+            self.result_at = now
         link = self._link()
         items = finalize_items(list(self.candidates.values()), self.attention, now)
         if link.mac_locked:
@@ -236,6 +242,7 @@ class Bridge:
         model.chime = chime
         self.transport.send_model(model)
         self._last_sent, self._last_sent_at = body, now
+        self._shown_heads = {ref: cand.head for ref, cand in self.candidates.items()}
         return model
 
     # Events.
@@ -294,6 +301,11 @@ class Bridge:
             if cand is not None:
                 self._show(cand, now)
             return
+        if event.key == "yes" and event.ref is not None:
+            if event.phase == "down":
+                self._hold_heads[event.ref] = self._shown_heads.get(event.ref)
+            elif event.phase == "up":
+                self._hold_heads.pop(event.ref, None)
         if event.phase != "held" or self._mac_locked_now(now):
             return
         if self.away():
@@ -305,7 +317,17 @@ class Bridge:
         if event.key not in cand.item.actions or cand.item.kind == "herdr_blocked":
             self._set_result(Result("none", "failed", "%s does not apply to %s" % (event.key.upper(), cand.item.short_id)), now)
             return
+        if event.key == "yes" and not self._head_unchanged(event.ref, cand):
+            self._set_result(Result("none", "failed", "PR changed, look again: %s" % cand.item.short_id), now)
+            return
         self._set_result(self.executor.note(event.key, cand), now)
+
+    def _head_unchanged(self, ref: str, cand: Candidate) -> bool:
+        """True when the item's PR head is the one the deck had when the hold began (or, with no
+        `down` seen, in the last model sent), so a refresh during a hold never pins YES to a commit
+        the captain did not see."""
+        shown = self._hold_heads.pop(ref) if ref in self._hold_heads else self._shown_heads.get(ref)
+        return cand.head == shown
 
     def _show(self, cand: Candidate, now: float) -> None:
         """SHOW ME: focus the pane first (it is instant), then open the board, report, or PR if there is one."""
@@ -336,7 +358,18 @@ class Bridge:
             self.handle(event)
         self.tick()
 
+    def start(self) -> None:
+        """Take back notes sent before a restart, and show the replies that came while the bridge was down:
+        the newest first, then the rest in turn as each one's linger ends."""
+        recovered = list(reversed(self.executor.adopt()))
+        for result in recovered:
+            log.info("reply from while the bridge was down: %s: %s", result.request_id, result.text)
+        if recovered:
+            self._set_result(recovered[0], self.clock())
+            self._recovered = recovered[1 : 1 + RECOVERED_MAX]
+
     def run_forever(self) -> None:
         log.info("helm bridge running (%s)", "dry run" if self.executor.dry_run else "LIVE")
+        self.start()
         while True:
             self.step()

@@ -8,6 +8,8 @@ item's Lavish board, report, or PR when it has one (helm/bridge/show.py).
 
 from __future__ import annotations
 
+import datetime
+import hashlib
 import json
 import logging
 import re
@@ -22,6 +24,7 @@ from helm.bridge.commands import CommandRefused
 from helm.bridge.items import Candidate
 from helm.bridge.report_html import render_report
 from helm.bridge.show import LAVISH_LIST_ARGV, ShowTarget, default_cache_dir, find_target, parse_lavish_sessions
+from helm.bridge.sources import status_tail
 
 log = logging.getLogger(__name__)
 
@@ -29,15 +32,70 @@ log = logging.getLogger(__name__)
 # for the one task, key, or PR it names (D14). Do not reword it.
 YES_PREFIX = "Captain, from the Helm deck, held to confirm: YES"
 NOTE_EXIT_SAVED_NOT_ANNOUNCED = 3
+# On start, notes older than this are not taken back: firstmate has had a day to reply.
+ADOPT_MAX_AGE_S = 86400
+# The last firstmate reply this bridge has read, in the helm cache (never under a firstmate home).
+CURSOR_FILE = "inbox-reply-cursor.json"
+REQUEST_ID_MAX = 128  # fm-inbox.sh's limit
 _REQUEST_ID_UNSAFE = re.compile(r"[^A-Za-z0-9._:-]+")
+_FULL_SHA = re.compile(r"[0-9a-f]{40}")
+_STATUS_AT = re.compile(r"\[at=(\d+)\]")
+
+
+def pinned_head(cand: Candidate) -> Optional[str]:
+    """The PR commit a YES is pinned to: the item's head, only when it is a full 40 character SHA."""
+    head = cand.head if isinstance(cand.head, str) else ""
+    return head if cand.item.pr_url and _FULL_SHA.fullmatch(head) else None
+
+
+def decision_opened(home: Optional[Path], task: str, key: str) -> Optional[int]:
+    """When this decision was opened: the first status line for its key since the key was last resolved."""
+    if home is None or not task or not key:
+        return None
+    needle = "[key=%s]" % key
+    opened = None
+    for line in status_tail(home, task):
+        if needle not in line:
+            continue
+        if line.startswith("resolved"):
+            opened = None  # closed; a later line for the key opens it again
+        elif opened is None:
+            match = _STATUS_AT.search(line)
+            opened = int(match.group(1)) if match else None
+    return opened
+
+
+def item_instance(cand: Candidate) -> Optional[str]:
+    """What makes this ask a new one on the same item: when a decision opened, and the PR commit shown."""
+    parts = []
+    if cand.item.kind == "decision":
+        opened = decision_opened(cand.home_path, cand.task, cand.note_key)
+        if opened is not None:
+            parts.append("o%d" % opened)
+        else:
+            # No status record to date it (a captain hold carries only a whole-day age): its question stands in.
+            parts.append("q" + hashlib.sha256(cand.item.detail.encode("utf-8")).hexdigest()[:8])
+    head = pinned_head(cand)
+    if head:
+        parts.append(head[:12])
+    return "-".join(parts) or None
 
 
 def request_id(intent: str, cand: Candidate, now: float) -> str:
-    """Stable per item, intent, and day, so a repeat press is a replay rather than a second note."""
+    """Stable per item instance, intent, and day, so a repeat press is a replay rather than a second note,
+    while a new commit on the PR or a reopened decision is a new ask."""
     day = time.strftime("%Y%m%d", time.localtime(now))
-    parts = ["helm", intent, cand.item.home, cand.task or "x", cand.note_key or "x", day]
-    rid = _REQUEST_ID_UNSAFE.sub("_", "-".join(parts))
-    return rid[:128]
+    instance = item_instance(cand)
+    tail = _REQUEST_ID_UNSAFE.sub("_", "%s-%s" % (instance, day) if instance else day)
+    identity = "-".join(["helm", intent, cand.item.home, cand.task or "x", cand.note_key or "x"])
+    head = _REQUEST_ID_UNSAFE.sub("_", identity)
+    room = REQUEST_ID_MAX - len(tail) - 1
+    if len(head) > room:
+        # Long task or key names give way first, so the instance and day always survive. A digest of
+        # the whole identity keeps two items apart when only the cut part (often the key) differs.
+        digest = "h" + hashlib.sha256(identity.encode("utf-8")).hexdigest()[:8]
+        head = "%s-%s" % (head[: room - len(digest) - 1], digest)
+    return "%s-%s" % (head, tail)
 
 
 def _subject(cand: Candidate) -> str:
@@ -47,17 +105,25 @@ def _subject(cand: Candidate) -> str:
     return subject
 
 
-def note_text(intent: str, cand: Candidate) -> str:
+def next_local_date(now: float) -> str:
+    return (datetime.date.fromtimestamp(now) + datetime.timedelta(days=1)).isoformat()
+
+
+def note_text(intent: str, cand: Candidate, now: float) -> str:
     subject = _subject(cand)
     if intent == "yes":
         pr = "`%s`" % cand.item.pr_url if cand.item.pr_url else "the PR it names"
+        head = pinned_head(cand)
+        if head:
+            # Firstmate passes this as fm-pr-merge.sh --expected-head and refuses if the PR has moved.
+            pr += " at commit `%s`" % head
         return (
             "%s on %s. If this is a merge ask, merge %s under your normal checks. "
             "Otherwise go with your single recommended option, only if you gave exactly one. "
             "If neither applies, change nothing and reply." % (YES_PREFIX, subject, pr)
         )
     if intent == "later":
-        return "Captain, from the Helm deck: defer %s until tomorrow." % subject
+        return "Captain, from the Helm deck: defer %s until %s." % (subject, next_local_date(now))
     if intent == "hold":
         return "Captain, from the Helm deck: do not proceed on %s. Raise it with me in chat." % subject
     raise ValueError("unknown intent %r" % intent)
@@ -68,6 +134,7 @@ class Pending:
     request_id: str
     note_id: str
     started: float
+    earlier: bool = False  # a replay of a note firstmate had already read: its reply is from before this press
 
 
 class IntentExecutor:
@@ -80,6 +147,7 @@ class IntentExecutor:
         self.cache_dir = cache_dir or default_cache_dir()  # rendered report pages; never under a firstmate home
         self.pending: dict[str, Pending] = {}
         self.dry_log: list[str] = []  # every command a dry run would have run
+        self._cursor: Optional[str] = None  # receipts reply cursor; None until read from the cache
 
     @property
     def inbox(self) -> str:
@@ -96,24 +164,27 @@ class IntentExecutor:
         log.info("dry run, not running %s: %s%s", what, prefix, line)
 
     def note(self, intent: str, cand: Candidate) -> Result:
-        rid = request_id(intent, cand, self.clock())
-        argv = [self.inbox, "note", "--request-id", rid, "--json", "--", note_text(intent, cand)]
+        now = self.clock()
+        rid = request_id(intent, cand, now)
+        argv = [self.inbox, "note", "--request-id", rid, "--json", "--", note_text(intent, cand, now)]
         if self.dry_run:
             self._dry(argv, "note", self.env)
             return Result(rid, "queued", "dry run: %s on %s logged, not sent" % (intent.upper(), cand.item.short_id))
         done = self.runner.run(argv, env=self.env, timeout=20)
         info = _json_or_none(done.stdout) or {}
         note_id = info.get("id")
+        what = "%s on %s" % (intent.upper(), cand.item.short_id)
         if done.returncode == 0 and note_id:
-            self.pending[rid] = Pending(rid, note_id, self.clock())
-            word = "already queued" if info.get("outcome") == "replay" else "queued"
-            return Result(rid, "queued", "%s %s on %s" % (word, intent.upper(), cand.item.short_id))
+            if info.get("outcome") == "replay":
+                return self._replayed(rid, note_id, info, what, now)
+            self.pending[rid] = Pending(rid, note_id, now)
+            return Result(rid, "queued", "queued %s" % what)
         if done.returncode == NOTE_EXIT_SAVED_NOT_ANNOUNCED and note_id:
             # Saved but the wake failed: repair the wake, never send the note again.
-            self.pending[rid] = Pending(rid, note_id, self.clock())
+            self.pending[rid] = Pending(rid, note_id, now)
             fixed = self.runner.run([self.inbox, "announce", "--json", note_id], env=self.env, timeout=20)
             if fixed.returncode == 0:
-                return Result(rid, "queued", "queued %s on %s (wake repaired)" % (intent.upper(), cand.item.short_id))
+                return Result(rid, "queued", "queued %s (wake repaired)" % what)
             log.warning("announce %s failed (%s): %s", note_id, fixed.returncode, fixed.stderr.strip())
             return Result(rid, "queued", "saved, firstmate not woken yet")
         log.warning("note failed (%s): %s", done.returncode, done.stderr.strip())
@@ -173,28 +244,116 @@ class IntentExecutor:
             log.warning("open %s failed (%s): %s", target.what, done.returncode, done.stderr.strip()[:200])
         return done.returncode == 0
 
+    def _replayed(self, rid: str, note_id: str, info: dict, what: str, now: float) -> Result:
+        """The same ask again. If firstmate already read the note, say so, and label any reply as earlier.
+
+        fm-inbox.sh can report a replayed note as not acknowledged once it has been announced,
+        so the receipts row decides; the note's path is the fallback when receipts do not list it.
+        """
+        data = self._receipts([])
+        row = _notes(data).get(note_id) if data else None
+        if row is not None:
+            acknowledged = row.get("acknowledged") is True
+        else:
+            acknowledged = info.get("acknowledged") is True or "/handled/" in str(info.get("path") or "")
+        reply = _reply_body(row.get("reply")) if row else None
+        if reply is not None:
+            self.pending.pop(rid, None)
+            return Result(rid, "replied", "answered earlier: %s. Earlier reply: %s" % (what, reply or "firstmate replied"))
+        if acknowledged:
+            self.pending[rid] = Pending(rid, note_id, now, earlier=True)
+            return Result(rid, "queued", "answered earlier: %s, no reply yet" % what)
+        self.pending[rid] = Pending(rid, note_id, now)
+        return Result(rid, "queued", "already queued %s" % what)
+
     def check_receipts(self) -> list[Result]:
         """Firstmate's replies to pending notes. Runs `receipts` only while something is pending."""
         if not self.pending:
             return []
-        done = self.runner.run([self.inbox, "receipts"], env=self.env, timeout=10)
-        data = _json_or_none(done.stdout)
-        if done.returncode != 0 or not isinstance(data, dict):
+        cursor = self._load_cursor()
+        data = self._receipts(["--after", cursor] if cursor else [])
+        if data is None:
             return []
-        notes = {}
-        for group in ("pending", "handled"):
-            for note in data.get(group) or []:
-                if isinstance(note, dict) and note.get("id"):
-                    notes[note["id"]] = note
+        replies = {note_id: note["reply"] for note_id, note in _notes(data).items() if note.get("reply")}
+        for reply in data.get("replies") or []:
+            if isinstance(reply, dict) and reply.get("id"):
+                replies[reply["id"]] = reply
         results = []
         for rid, pend in list(self.pending.items()):
-            note = notes.get(pend.note_id)
-            if not note or not note.get("reply"):
+            body = _reply_body(replies.get(pend.note_id))
+            if body is None:
                 continue
-            body = (note["reply"].get("body") or "").strip()
-            results.append(Result(rid, "replied", body or "firstmate replied"))
+            text = body or "firstmate replied"
+            results.append(Result(rid, "replied", "earlier reply: %s" % text if pend.earlier else text))
             del self.pending[rid]
+        self._save_cursor(data.get("reply_cursor"))
         return results
+
+    def adopt(self) -> list[Result]:
+        """On start: take back this bridge's notes still waiting on a reply, and return the replies
+        that came while it was down. A dry run sent nothing and leaves the live cursor alone."""
+        if self.dry_run:
+            return []
+        cursor = self._load_cursor()
+        # With no cursor yet, every reply listed is from before this bridge kept one: none is shown.
+        data = self._receipts(["--after", cursor, "--all-replies"] if cursor else [])
+        if data is None:
+            return []
+        now = self.clock()
+        notes = _notes(data)
+        for note_id, note in notes.items():
+            rid = note.get("request_id")
+            if not _ours(rid) or note.get("reply") or rid in self.pending:
+                continue
+            at = _utc_epoch(note.get("at"))
+            if at is None or now - at > ADOPT_MAX_AGE_S:
+                continue
+            self.pending[rid] = Pending(rid, note_id, at)
+        results = []
+        for reply in (data.get("replies") or []) if cursor else []:
+            note = notes.get(reply.get("id")) if isinstance(reply, dict) else None
+            body = _reply_body(reply)
+            if note is not None and _ours(note.get("request_id")) and body is not None:
+                results.append(Result(note["request_id"], "replied", body or "firstmate replied"))
+        self._save_cursor(data.get("reply_cursor"))
+        if self.pending or results:
+            log.info("after restart: %d note(s) waiting, %d reply(ies) since last run", len(self.pending), len(results))
+        return results
+
+    def _receipts(self, extra: list[str]) -> Optional[dict]:
+        done = self.runner.run([self.inbox, "receipts", *extra], env=self.env, timeout=10)
+        data = _json_or_none(done.stdout)
+        if done.returncode != 0 or not isinstance(data, dict):
+            return None
+        return data
+
+    @property
+    def _cursor_path(self) -> Path:
+        return self.cache_dir / CURSOR_FILE
+
+    def _load_cursor(self) -> str:
+        """The saved reply cursor for this home, or "" when there is none (or it belongs to another home)."""
+        if self._cursor is None:
+            self._cursor = ""
+            try:
+                saved = json.loads(self._cursor_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                saved = None
+            if isinstance(saved, dict) and saved.get("home") == str(self.primary_home) and _valid_cursor(saved.get("cursor")):
+                self._cursor = saved["cursor"]
+        return self._cursor
+
+    def _save_cursor(self, cursor) -> None:
+        if not _valid_cursor(cursor) or (self._cursor and int(cursor) <= int(self._cursor)):
+            return
+        self._cursor = cursor
+        try:
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+            tmp = self._cursor_path.with_name(CURSOR_FILE + ".tmp")
+            tmp.write_text(json.dumps({"home": str(self.primary_home), "cursor": cursor}), encoding="utf-8")
+            tmp.replace(self._cursor_path)
+        except OSError as exc:
+            log.warning("reply cursor not saved: %s", exc)
 
 
 def _inside(path: Path, root: Path) -> bool:
@@ -207,5 +366,38 @@ def _inside(path: Path, root: Path) -> bool:
 def _json_or_none(text: str):
     try:
         return json.loads(text)
+    except (TypeError, ValueError):
+        return None
+
+
+def _ours(rid) -> bool:
+    return isinstance(rid, str) and rid.startswith("helm-")
+
+
+def _notes(data: dict) -> dict[str, dict]:
+    """Pending and handled notes from a receipts read, by note id."""
+    notes = {}
+    for group in ("pending", "handled"):
+        for note in data.get(group) or []:
+            if isinstance(note, dict) and note.get("id"):
+                notes[note["id"]] = note
+    return notes
+
+
+def _reply_body(reply) -> Optional[str]:
+    """A reply record's text, stripped ("" for an empty one), or None when there is no reply."""
+    if not isinstance(reply, dict):
+        return None
+    return str(reply.get("body") or "").strip()
+
+
+def _valid_cursor(cursor) -> bool:
+    return isinstance(cursor, str) and cursor.isascii() and cursor.isdigit()
+
+
+def _utc_epoch(stamp) -> Optional[float]:
+    """fm-inbox.sh's note time, 2026-11-11T16:06:06Z, as epoch seconds."""
+    try:
+        return datetime.datetime.strptime(stamp, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc).timestamp()
     except (TypeError, ValueError):
         return None

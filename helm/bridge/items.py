@@ -92,6 +92,7 @@ class Candidate:
     home_path: Optional[Path]
     pane: Optional[str]
     origin_epoch: Optional[float] = None  # when the item started needing the captain, if known
+    head: Optional[str] = None  # the PR's head commit as firstmate last read it, when the item names a PR
 
 
 @dataclass
@@ -280,7 +281,7 @@ def build_candidates(
                 checks=checks,
                 project=task_project(path, task, repos) or pr_repo(url),
             )
-            candidates[ref] = Candidate(item, task, key, path, pane, origin)
+            candidates[ref] = Candidate(item, task, key, path, pane, origin, head=heads.get(url) if url else None)
 
         for c in (summary.get("contributions") or {}).get("captain") or []:
             if not isinstance(c, dict) or c.get("kind") != "pr" or not c.get("url"):
@@ -305,7 +306,7 @@ def build_candidates(
                 checks=checks,
                 project=(task_project(path, task, repos) if task else None) or pr_repo(url),
             )
-            candidates[ref] = Candidate(item, task, "pr-%s" % url.rstrip("/").split("/")[-1], path, pane)
+            candidates[ref] = Candidate(item, task, "pr-%s" % url.rstrip("/").split("/")[-1], path, pane, head=c.get("head"))
 
         for child in summary.get("active_children") or []:
             if not isinstance(child, dict) or not child.get("id"):
