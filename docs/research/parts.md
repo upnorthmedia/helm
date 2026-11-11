@@ -1,5 +1,7 @@
 # Parts: the v1 build
 
+. The v2 parts list is [docs/build/bom.md](../build/bom.md).
+
 Prices and stock checked 2026-11-09, USD, quantity 1, before shipping and tax. Adafruit figures come from Adafruit's product API (`https://www.adafruit.com/api/product/<PID>`). Stock changes daily. "Unverified" means the source did not show the value or could not be loaded; nothing is filled in from memory.
 
 The build follows the decisions in the [README](README.md#decisions): an ESP32-P4 720 x 720 touch module (D3), four MX keys with custom keycaps (D4, D5, D21), one push knob, a light bar, a buzzer (D6), USB power only (D8), Arduino firmware (D7), and USB serial to the Mac (D9).

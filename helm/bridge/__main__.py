@@ -3,6 +3,7 @@
 The home defaults to $FM_HOME, the variable firstmate itself uses.
 
 Dry run is the default: the exact note, focus, and SHOW ME open commands are logged, not run.
+`--doctor` checks what the home is missing for Helm, read only, and exits.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from pathlib import Path
 
 from helm.contract import model_to_dict
 from helm.bridge.bridge import Bridge
+from helm.bridge import doctor
 from helm.bridge.commands import Runner
 from helm.bridge.intents import IntentExecutor
 from helm.bridge.show import default_cache_dir
@@ -44,6 +46,8 @@ def main(argv=None) -> int:
     mode.add_argument("--dry-run", dest="live", action="store_false", help="log note, focus, and open commands instead of running them (default)")
     mode.add_argument("--live", dest="live", action="store_true", help="send real inbox notes, focus herdr panes, and open boards and reports")
     parser.add_argument("--once", action="store_true", help="read everything once, print one Model as JSON, and exit")
+    parser.add_argument("--doctor", action="store_true",
+                        help="check what the firstmate home is missing for Helm, read only; exit 1 if a required piece is missing")
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.set_defaults(live=False)
     args = parser.parse_args(argv)
@@ -56,6 +60,9 @@ def main(argv=None) -> int:
     if not args.home:
         parser.error("no firstmate home: pass --home or set FM_HOME")
     home = Path(args.home).expanduser()
+    if args.doctor:
+        # Never live: the doctor's runner refuses every write command.
+        return doctor.main(home, Runner(allow_writes=False))
     if not (home / "state").is_dir():
         parser.error("not a firstmate home (no state/ directory): %s" % home)
 

@@ -1,5 +1,7 @@
 # Signals: what Helm shows, what it may do, and how it talks
 
+> **Decision record of 2026-11-09.** This page records the research and decisions as they stood on 2026-11-09, before any firmware, bridge, or CAD existed. It is kept as the record of why Helm is shaped the way it is, not as a description of what is on `main`. What was built is in [docs/architecture.md](../architecture.md), and the bridge's current behavior in [helm/bridge/README.md](../../helm/bridge/README.md).
+
 Researched 2026-11-09, read only, against a local firstmate checkout and herdr 0.9.5 (socket API protocol 22, cyber-mux 0.9.1). Nothing in either was changed.
 
 Firstmate and herdr are local tools, so sources are file paths, script headers, and CLI commands rather than URLs. Paths are relative to a firstmate home unless they start with `/`. The script header named for each contract owns it; the bridge should re-read it before relying on a field.
@@ -76,7 +78,7 @@ The captain decided the bridge also reads second mate homes directly, not only t
 - **Finding them.** Each second mate has a `state/<id>.meta` in the primary home with `kind=secondmate` and `home=<path>`. A remote one also has `remote_host=`; its files live on that host.
 - **Local homes.** Each publishes its own `state/home-summary.json` (same schema) and, in the home studied, its own `config/fleet-ledger` and `state/fleet-ledger.jsonl`. In the home studied, every registered second mate was local and every summary was readable.
 - **Remote homes.** Read the parent's cached copy under `state/secondmate-summary-cache/`, which `bin/fm-fleet-snapshot.sh` refreshes ("a valid prior copy under FM_SNAPSHOT_CACHE_DIR used when the live read fails"). The bridge never connects to a remote host itself. No remote second mates exist here today, so this path is untested.
-- **Duplicates.** The primary's summary already shows second mate questions as `needs-decision` rows whose `id` is the second mate's task id. In the home studied, about half of the primary's rows came from second mates, and some of one second mate's rows had a key of the form `captain-hold-<held task id>-<n>` matching a captain hold in that second mate's own summary. The rest were that second mate's own status lines with no matching row in its home. Rule for the bridge: show each home's own rows under that home, and hide a primary row only when its `id` is a second mate and its key names a hold present in that second mate's summary. This key shape is an observed convention, not a documented contract, so verify it in phase 0.
+- **Duplicates.** The primary's summary already shows second mate questions as `needs-decision` rows whose `id` is the second mate's task id. In the home studied, about half of the primary's rows came from second mates, and some of one second mate's rows had a key of the form `captain-hold-<held task id>-<n>` matching a captain hold in that second mate's own summary. The rest were that second mate's own status lines with no matching row in its home. Rule for the bridge: show each home's own rows under that home, and hide a primary row only when its `id` is a second mate and its key names a hold present in that second mate's summary. This key shape was an observed convention, not a documented contract, when this was written; firstmate's `bin/fm-captain-hold.sh` header now documents it.
 - **Writing.** Notes still go only to the primary home's inbox, naming the home and task. The primary relays to its second mate. The bridge never writes into a second mate's inbox.
 
 ### Privacy
@@ -99,7 +101,7 @@ Why a generic YES: firstmate wrote the question and knows whether it gave one re
 
 Note handling: always pass `--request-id` and `--json`. Exit 3 means "saved but the wake failed": repair with `bin/fm-inbox.sh announce <id>` and do not send again.
 
-Merge authority (D14): `AGENTS.md` says "Never merge a PR without the captain's explicit word." For a held YES to count as that word without a second confirmation in chat, firstmate's rules need one added sentence, roughly: a captain inbox note beginning "Captain, from the Helm deck" is a current explicit captain instruction for exactly the merge or answer it names. That is a firstmate change, outside this repo; until it lands, YES works as a request firstmate may confirm in chat.
+Merge authority (D14): `AGENTS.md` says "Never merge a PR without the captain's explicit word." For a held YES to count as that word without a second confirmation in chat, firstmate needs one added rule, roughly: a captain inbox note beginning "Captain, from the Helm deck, held to confirm: YES" is a current explicit captain instruction for exactly the merge or answer it names. As built, that rule is not part of firstmate: each user adds it to their own home as an opt-in, and it now pins the commit the deck showed ([docs/firstmate-setup.md](../firstmate-setup.md)). Without it, YES works as a request firstmate confirms in chat.
 
 ## The attention model
 
@@ -113,7 +115,7 @@ Why edge-triggered: a busy home can have a dozen open decisions, some over a mon
 
 ## The bridge
 
-- **Where and what:** a Python 3 program in this repo, `pyserial` its only dependency, started at login by a launchd agent (D10).
+- **Where and what:** a Python 3 program in this repo, started at login by a launchd agent (D10). Planned with `pyserial` as its one dependency; as built it uses only the standard library.
 - **Never called:** `fm-wake-drain.sh`, `fm-inbox.sh drain`, `fm-send.sh`, `fm-control.sh`, `fm-pr-merge.sh`, `fm-teardown.sh`, `fm-home-summary-refresh.sh`, `tasks-axi`, and every herdr command except `agent list` and `agent focus`.
 - **Simulator:** the bridge can talk to a terminal program over a pseudo-terminal instead of a serial port. That simulator is phase 0 of the build (D1).
 
@@ -123,7 +125,7 @@ Decision D9: USB serial carrying the Harness Pro's binary frame ([harness-pro.md
 
 | Field | Helm's use |
 | --- | --- |
-| Magic | `0xA5` then a Helm-specific second byte. Not `0x48` ("H", Harness) and not the sibling product's byte, so the Harness daemon and Helm's bridge can never adopt each other's devices. The value is a firmware design choice. |
+| Magic | Planned: `0xA5` then a Helm-specific second byte. As built: the Harness magic `A5 48`, byte for byte, and the `hello` event's `product: "helm"` is what tells a Harness daemon and Helm's bridge apart (`helm/contract.py`). |
 | Version | `1` |
 | Type | `0x01` JSON (with a `"t"` discriminator) and `0x04` log line. Helm sends no PCM. Firmware slices (`0x03`) only if over-the-cable updates are added later. |
 | Length | u16, little-endian, payload at most 8192 bytes |
