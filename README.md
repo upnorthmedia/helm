@@ -129,7 +129,7 @@ The screen is a 1280 x 720 touch screen. These are screenshots from the simulato
 - **A short leash on the Mac.** The bridge runs a fixed allowlist of commands and refuses everything else before a process starts. It starts in dry run, logging notes and opens instead of sending them, until you start it with `--live`.
 - **Mac lock.** Lock your Mac and every key goes dark, SHOW ME too. The lock is read again right before acting on any press. The deck still lights up, so you see what waited for you.
 - **Away and quiet.** Put firstmate in away mode and the answer keys lock and the chime goes silent. In quiet mode only the chime goes silent: firstmate treats you as present, so YES, LATER, and HOLD still work. SHOW ME still works and the lights still show new items in both.
-- **Honest about firstmate's own state.** When firstmate marks its summary invalid, the deck never reads "All quiet". When the summary leaves rows out, the list says how many (`+5 more decisions`).
+- **Honest about firstmate's own state.** When firstmate cannot vouch for its own state, the deck never reads "All quiet". When the summary leaves rows out, the list says how many (`+5 more decisions`).
 - **Usage and context gauges.** Home shows what is left of your Claude 5 hour and weekly windows and when each resets, plus the herdr agent closest to its context limit. Unknown readings show as unknown, never as full.
 - **Every project, its own shade.** Turn the knob on Home to step through your projects. Each project gets a paler shade of the item's color on the lights and list, so red still reads as red and amber as amber.
 - **Every home, one deck.** Helm reads your primary firstmate home and every second mate home it lists, and labels each item with the home it came from.

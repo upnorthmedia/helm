@@ -33,6 +33,8 @@ PROVISIONAL_TTL_S = 900
 # A captain row without a hold is firstmate's own "checks green, mergeable" verdict, and
 # firstmate keeps it only this long (FM_CONTRIBUTIONS_MAX_AGE in fm-contributions.sh).
 CAPTAIN_ROW_FRESH_S = 900
+# Invalidity kinds for which firstmate keeps the home's own state (bin/fm-fleet-snapshot.sh).
+INVENTORY_MISMATCH_KINDS = {"orphan_in_flight", "unowned_current", "terminal_in_flight"}
 # Summary surfaces whose left-out rows could hide something that needs the captain.
 OMITTED_SURFACES = {"decisions_open": "decisions", "endpoints": "tasks"}
 COLOR_RANK = {"red": 0, "amber": 1, "blue": 2, "green": 3}
@@ -308,6 +310,21 @@ def summary_invalid(summary: Optional[dict]) -> Optional[str]:
         return None
     invalidity = summary.get("invalidity") if isinstance(summary.get("invalidity"), dict) else {}
     return str(summary.get("reason") or invalidity.get("kind") or "invalid")
+
+
+def summary_unknown(summary: Optional[dict]) -> bool:
+    """Whether firstmate itself reads an invalid home's state as unknown.
+
+    Firstmate keeps the home's own state for an inventory mismatch (an in-flight task with
+    no meta, a running task with no backlog row, an in-flight task already done or failed,
+    such as a finished worker waiting for its merge), and collapses it to "unknown" for any
+    other invalidity or a task whose current state is unavailable. Its summary publishes
+    that reading as `state`; the kind is the fallback when `state` is absent.
+    """
+    if summary_invalid(summary) is None:
+        return False
+    invalidity = summary.get("invalidity") if isinstance(summary.get("invalidity"), dict) else {}
+    return summary.get("state") == "unknown" or invalidity.get("kind") not in INVENTORY_MISMATCH_KINDS
 
 
 def _omitted(summary: dict) -> dict[str, int]:

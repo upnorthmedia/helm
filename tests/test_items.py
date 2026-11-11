@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from helm.bridge.items import (
-    HomeSnapshot, LedgerState, build_candidates, decision_ref, more_ref, pr_checks, pr_ref, pr_verdict, summary_invalid,
+    HomeSnapshot, LedgerState, build_candidates, decision_ref, more_ref, pr_checks, pr_ref, pr_verdict, summary_invalid, summary_unknown,
     worker_ref,
 )
 from helm.bridge.sources import discover_homes
@@ -89,7 +89,7 @@ class BuildCandidatesTest(unittest.TestCase):
         self.assertEqual(cands[decision_ref("primary", "alpha-fix", "merge-alpha-12")].item.project, "alpha")
         self.assertEqual(cands[decision_ref("primary", "mate1", "merge-sigma-9")].item.project, "sigma")
 
-    # Worker problems come from endpoints[], the current state of every task (A1)
+    # Worker problems come from endpoints[], the current state of every task
 
     def test_blocked_worker_comes_from_endpoints_with_its_hold_text(self):
         # The producer lists only working tasks in active_children; beta-port is blocked in endpoints[].
@@ -136,7 +136,7 @@ class BuildCandidatesTest(unittest.TestCase):
         _, counts = self.build()
         self.assertEqual(counts.working, 2)
 
-    # Honesty fields (A2)
+    # Honesty fields
 
     def test_omitted_decisions_are_counted_and_shown_as_more(self):
         def change(summary):
@@ -159,7 +159,20 @@ class BuildCandidatesTest(unittest.TestCase):
         summary = json.loads((self.primary / "state" / "home-summary.json").read_text())
         self.assertEqual(summary_invalid(summary), "in-flight backlog item has terminal child state: eta-sync=failed")
 
-    # PR verdicts (A3)
+    def test_summary_unknown_follows_firstmates_own_reading(self):
+        def load():
+            return json.loads((self.primary / "state" / "home-summary.json").read_text())
+        self.assertFalse(summary_unknown(load()))
+        use_variant(self.primary, "primary-failed")  # terminal_in_flight: an inventory mismatch
+        self.assertFalse(summary_unknown(load()))
+        use_variant(self.primary, "primary-unknown")  # child_current_unavailable: state "unknown"
+        self.assertTrue(summary_unknown(load()))
+        mismatch = {"valid": False, "invalidity": {"kind": "unowned_current", "ids": ["x"]}, "state": "unknown"}
+        self.assertTrue(summary_unknown(mismatch))  # firstmate's state wins: an unavailable child as well
+        self.assertTrue(summary_unknown({"valid": False, "invalidity": {"kind": "missing_backlog", "ids": []}}))
+        self.assertFalse(summary_unknown({"valid": False, "invalidity": {"kind": "orphan_in_flight", "ids": []}}))
+
+    # PR verdicts
 
     def test_a_fresh_captain_row_is_green_whatever_pr_health_reported(self):
         # pr-health reported alpha failing at this very head; a re-run then passed and firstmate's
@@ -200,7 +213,7 @@ class BuildCandidatesTest(unittest.TestCase):
         self.assertEqual((theta.task, theta.note_key, theta.item.pr_url), ("theta-cut", "theta-cut", None))
         self.assertIn("recommend wait", theta.item.detail)
 
-    # herdr panes (A5, D4)
+    # herdr panes
 
     def test_a_waiting_pane_of_a_firstmate_task_raises_no_item(self):
         agents = herdr_agents(self.primary) + [

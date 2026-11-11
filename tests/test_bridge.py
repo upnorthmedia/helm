@@ -373,14 +373,29 @@ class BridgeTest(unittest.TestCase):
             next(e for e in summary["endpoints"] if e["id"] == task)["state"] = state
         return change
 
-    def test_an_invalid_summary_is_never_calm(self):
+    def test_a_terminal_in_flight_summary_stays_calm_and_says_why(self):
+        # An inventory mismatch: firstmate keeps the home's state, so a finished or failed worker
+        # waiting on firstmate must not turn the deck to "Link unknown".
         use_variant(self.primary, "primary-failed")
-        model = self.bridge.tick(self.now)
+        with self.assertLogs("helm.bridge.bridge", "WARNING") as logs:
+            model = self.bridge.tick(self.now)
+        self.assertEqual(model.attention, "calm")
+        self.assertTrue(model.link.firstmate_can_receive)
+        reason = "primary summary invalid: in-flight backlog item has terminal child state: eta-sync=failed"
+        self.assertEqual(model.link.stale_reason, reason)
+        self.assertEqual(logs.output, ["WARNING:helm.bridge.bridge:" + reason])
+        self.assertIn("worker|primary|eta-sync", [i.ref for i in model.items])
+        self.advance(2)  # logged once, not on every model
+
+    def test_a_summary_firstmate_reads_as_unknown_is_never_calm(self):
+        use_variant(self.primary, "primary-unknown")  # a task whose current state is unavailable
+        with self.assertLogs("helm.bridge.bridge", "WARNING"):
+            model = self.bridge.tick(self.now)
         self.assertEqual(model.attention, "unknown")
         self.assertTrue(model.link.firstmate_can_receive)
-        self.assertEqual(model.link.stale_reason,
-                         "primary summary invalid: in-flight backlog item has terminal child state: eta-sync=failed")
-        self.assertIn("worker|primary|eta-sync", [i.ref for i in model.items])
+        self.assertEqual(model.link.stale_reason, "primary summary invalid: child current state unavailable: iota-api")
+        self.add_decision(self.primary, {"id": "nu", "key": "nu", "verb": "captain-hold", "hold_age_days": 0})
+        self.assertEqual(self.advance(2).attention, "new")  # something new still reads as new
 
     def test_a_stuck_worker_lights_at_once_and_chimes_only_if_still_stuck_ten_minutes_later(self):
         self.bridge.tick(self.now)

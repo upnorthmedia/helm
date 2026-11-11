@@ -14,7 +14,7 @@ from helm.bridge.attention import Attention
 from helm.bridge.context import context_gauge
 from helm.bridge.intents import IntentExecutor
 from helm.bridge.items import (Candidate, HomeSnapshot, LedgerState, agent_title, build_candidates, finalize_items,
-                               summary_invalid, worker_problems)
+                               summary_invalid, summary_unknown, worker_problems)
 from helm.bridge.lock import LockWatch
 from helm.bridge.usage import UsagePoller
 from helm.bridge.sources import (
@@ -85,6 +85,7 @@ class Bridge:
         self.agents: list[dict] = []
         self.herdr_error: Optional[str] = None
         self.herdr_installed: Optional[bool] = None  # unknown until the first `herdr agent list`
+        self._invalid_logged: dict[str, str] = {}  # home label -> invalid reason last logged
         self.candidates: dict[str, Candidate] = {}
         self.counts = Counts()
         self.result: Optional[Result] = None
@@ -181,6 +182,21 @@ class Bridge:
                 out.append("%s summary invalid: %s" % (label, reason))
         return out
 
+    def _summary_unknown(self) -> bool:
+        """Some home's summary is invalid in a way firstmate itself reads as unknown."""
+        return any(summary_unknown(r.summary.data) for r in self.readers.values())
+
+    def _log_invalid(self) -> None:
+        """Log each home's invalid-summary reason once when it appears or changes, and when it clears."""
+        current = {label: reason for label, r in self.readers.items()
+                   if (reason := summary_invalid(r.summary.data))}
+        for label, reason in current.items():
+            if self._invalid_logged.get(label) != reason:
+                log.warning("%s summary invalid: %s", label, reason)
+        for label in self._invalid_logged.keys() - current.keys():
+            log.info("%s summary valid again", label)
+        self._invalid_logged = current
+
     def _link(self) -> Link:
         can_receive = self.ready.get("can_receive") if self.ready else None
         posture = self._posture()
@@ -211,6 +227,7 @@ class Bridge:
             for r in self.readers.values()
             if isinstance(r.summary.data, dict) and isinstance(r.summary.data.get("generated_epoch"), (int, float))
         }
+        self._log_invalid()
         problems = worker_problems(snapshots)
         self.ledger.expire(now, epochs, keep=frozenset(problems))
         candidates, self.counts = build_candidates(snapshots, self.ledger, self.agents, now,
@@ -230,8 +247,9 @@ class Bridge:
         link = self._link()
         items = finalize_items(list(self.candidates.values()), self.attention, now)
         attention = self.attention.state(link.firstmate_can_receive is True)
-        if attention == "calm" and self._invalid_summaries():
-            # Never calm on a summary firstmate itself marks invalid; link.stale_reason says why.
+        if attention == "calm" and self._summary_unknown():
+            # Firstmate reads that home's state as unknown, so the deck does too. An inventory
+            # mismatch keeps the home's state; either way link.stale_reason says why.
             attention = "unknown"
         if link.mac_locked:
             # Nothing acts on a locked Mac, SHOW ME included, so even an older deck keeps every key dark.

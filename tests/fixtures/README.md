@@ -22,7 +22,8 @@ The inputs describe this primary home:
 | `mate1` | second mate, working | Relays its `gamma-choice` hold as `captain-hold-gamma-choice-1` |
 
 `variants/primary-failed-home-summary.json` adds `eta-sync`, a failed worker.
-The producer marks that summary invalid (`terminal_in_flight`), as it does for any in-flight task in a terminal state.
+The producer marks that summary invalid (`terminal_in_flight`), as it does for any in-flight task in a terminal state, but keeps the home's state.
+`variants/primary-unknown-home-summary.json` adds `iota-api`, whose current state is unavailable; that summary is invalid (`child_current_unavailable`) with `state: "unknown"`.
 
 Two values are filled in when a test copies a home (`tests/helpers.py`, `date_summary`): the `TODAY` date on the landed row, and each captain row's `checked_at`, set to now so the row counts as freshly checked.
 `pr-health.json`, the `.meta` files, and the `.status` files are hand-written in the shapes `bin/fm-pr-health.sh`, `bin/fm-spawn.sh`, and the worker status protocol use.
