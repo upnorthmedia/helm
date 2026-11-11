@@ -10,7 +10,7 @@ from helm.bridge.intents import IntentExecutor
 from helm.bridge.usage import UsagePoller
 from helm.bridge.transports import MemoryTransport
 from sim.state import HOLD_S, Deck
-from tests.helpers import QUOTA_OK, FakeRunner, ioreg_root, lavish_listing, make_homes
+from tests.helpers import QUOTA_OK, FakeRunner, ioreg_root, lavish_listing, make_homes, use_variant
 
 
 class BridgeTest(unittest.TestCase):
@@ -46,7 +46,7 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(model.attention, "calm")
         self.assertEqual(model.unseen, 0)
         self.assertFalse(model.chime)
-        self.assertEqual(model.counts.decisions, 4)
+        self.assertEqual(model.counts.decisions, 5)
         self.assertEqual(model.link.firstmate_can_receive, True)
         self.assertEqual(model.link.posture, "present")
         self.assertIsNone(model.link.stale_reason)
@@ -89,7 +89,7 @@ class BridgeTest(unittest.TestCase):
         model = self.advance(0.5)  # ledger is checked every step, the summary every 2 s
         self.assertEqual(model.items[0].ref, "decision|primary|kappa|merge-kappa-4")
         self.assertTrue(model.chime)
-        self.assertEqual(model.counts.decisions, 5)
+        self.assertEqual(model.counts.decisions, 6)
 
     def test_unknown_when_firstmate_cannot_receive(self):
         self.runner.ready["can_receive"] = False
@@ -217,26 +217,28 @@ class BridgeTest(unittest.TestCase):
         # A real deck (the simulator's) in front of the bridge, with one select frame lost on the way.
         deck = Deck()
         deck.on_model(self.bridge.tick(self.now), self.now)
+        arrived, lost = deck.visible[1], deck.visible[2]
+        self.assertEqual((arrived.kind, lost.kind), ("decision", "decision"))
         deck.knob_press(False, self.now)  # open the list
-        deck.knob(1, self.now)  # gamma-choice: this select arrives
+        deck.knob(1, self.now)  # this select arrives
         for event in deck.take_outbox():
             self.bridge.handle(event, self.now)
-        deck.knob(1, self.now)  # widget-pricing: this select is lost
-        self.assertEqual(deck.selected_ref, "decision|primary|widget-pricing|widget-pricing")
+        deck.knob(1, self.now)  # this select is lost
+        self.assertEqual(deck.selected_ref, lost.ref)
         dropped = deck.take_outbox()
-        self.assertIn(Select("decision|primary|widget-pricing|widget-pricing"), dropped)
+        self.assertIn(Select(lost.ref), dropped)
         deck.key_down("yes", self.now)
         deck.tick(self.now + HOLD_S)
         for event in deck.take_outbox():
             self.bridge.handle(event, self.now)
         self.assertEqual(len(self.executor.dry_log), 1)
-        self.assertIn("YES on `widget-pricing`", self.executor.dry_log[0])
-        self.assertNotIn("gamma-choice", self.executor.dry_log[0])
+        self.assertIn("YES on `%s`" % self.bridge.candidates[lost.ref].task, self.executor.dry_log[0])
+        self.assertNotIn("`%s`" % self.bridge.candidates[arrived.ref].task, self.executor.dry_log[0])
 
     def test_yes_is_refused_when_dark(self):
         self.bridge.tick(self.now)
-        self.bridge.handle(Select("decision|primary|beta-port|merge-beta-7"), self.now)  # PR known red
-        self.bridge.handle(Key("yes", "held", "decision|primary|beta-port|merge-beta-7"), self.now)
+        self.bridge.handle(Select("decision|primary|omega-ci|merge-omega-7"), self.now)  # PR known red
+        self.bridge.handle(Key("yes", "held", "decision|primary|omega-ci|merge-omega-7"), self.now)
         model = self.advance(0.1)
         self.assertEqual(model.result.state, "failed")
         self.assertEqual(self.executor.dry_log, [])
@@ -357,6 +359,113 @@ class BridgeTest(unittest.TestCase):
         self.assertIsNotNone(model)
         self.assertEqual((model.attention, model.unseen), ("new", 1))
 
+    # Honest about a real home: worker state, invalid summaries, herdr
+
+    def edit_summary(self, change, home=None, epoch=None):
+        path = (home or self.primary) / "state" / "home-summary.json"
+        summary = json.loads(path.read_text())
+        change(summary)
+        summary["generated_epoch"] = epoch or int(self.now)
+        path.write_text(json.dumps(summary))
+
+    def set_state(self, task, state):
+        def change(summary):
+            next(e for e in summary["endpoints"] if e["id"] == task)["state"] = state
+        return change
+
+    def test_a_terminal_in_flight_summary_stays_calm_and_says_why(self):
+        # An inventory mismatch: firstmate keeps the home's state, so a finished or failed worker
+        # waiting on firstmate must not turn the deck to "Link unknown".
+        use_variant(self.primary, "primary-failed")
+        with self.assertLogs("helm.bridge.bridge", "WARNING") as logs:
+            model = self.bridge.tick(self.now)
+        self.assertEqual(model.attention, "calm")
+        self.assertTrue(model.link.firstmate_can_receive)
+        reason = "primary summary invalid: in-flight backlog item has terminal child state: eta-sync=failed"
+        self.assertEqual(model.link.stale_reason, reason)
+        self.assertEqual(logs.output, ["WARNING:helm.bridge.bridge:" + reason])
+        self.assertIn("worker|primary|eta-sync", [i.ref for i in model.items])
+        self.advance(2)  # logged once, not on every model
+
+    def test_a_summary_firstmate_reads_as_unknown_is_never_calm(self):
+        use_variant(self.primary, "primary-unknown")  # a task whose current state is unavailable
+        with self.assertLogs("helm.bridge.bridge", "WARNING"):
+            model = self.bridge.tick(self.now)
+        self.assertEqual(model.attention, "unknown")
+        self.assertTrue(model.link.firstmate_can_receive)
+        self.assertEqual(model.link.stale_reason, "primary summary invalid: child current state unavailable: iota-api")
+        self.add_decision(self.primary, {"id": "nu", "key": "nu", "verb": "captain-hold", "hold_age_days": 0})
+        self.assertEqual(self.advance(2).attention, "new")  # something new still reads as new
+
+    def test_a_stuck_worker_lights_at_once_and_chimes_only_if_still_stuck_ten_minutes_later(self):
+        self.bridge.tick(self.now)
+        self.edit_summary(self.set_state("delta-docs", "blocked"))
+        model = self.advance(2)
+        self.assertEqual((model.attention, model.unseen, model.chime), ("new", 1, False))
+        self.bridge.handle(Seen(), self.now)  # the captain looks, and leaves it to firstmate
+        self.assertEqual(self.advance(0.1).unseen, 0)
+        self.assertFalse(any(self.advance(60).chime for _ in range(9)))  # nine minutes on, still quiet
+        model = self.advance(60)
+        self.assertTrue(model.chime)
+        self.assertEqual(model.items[0].ref, "worker|primary|delta-docs")
+        self.assertTrue(model.items[0].unseen)  # lit again
+        self.assertFalse(self.advance(2).chime)  # once
+
+    def test_a_worker_unstuck_within_ten_minutes_never_chimes(self):
+        self.bridge.tick(self.now)
+        self.edit_summary(self.set_state("delta-docs", "failed"))
+        self.assertFalse(self.advance(2).chime)
+        self.advance(300)
+        self.edit_summary(self.set_state("delta-docs", "working"))
+        self.advance(2)
+        self.assertFalse(any(self.advance(60).chime for _ in range(10)))
+
+    def test_a_ledger_problem_stays_after_the_summary_republishes(self):
+        # The summary shows the task blocked in endpoints[], the ledger reports the edge, then the
+        # summary republishes. The item used to vanish at that point.
+        ledger = self.primary / "state" / "fleet-ledger.jsonl"
+        ledger.write_text("")
+        self.edit_summary(self.set_state("delta-docs", "blocked"), epoch=int(self.now) - 60)
+        self.bridge.tick(self.now)
+        with ledger.open("a") as fh:
+            fh.write(json.dumps({"v": 1, "ts": int(self.now), "event": "task.status", "task": "delta-docs",
+                                 "state": "blocked", "key": None, "text": " needs a token"}) + "\n")
+        model = self.advance(0.5)
+        delta = next(i for i in model.items if i.ref == "worker|primary|delta-docs")
+        self.assertTrue(delta.unseen)
+        self.assertFalse(model.chime)  # a stuck firstmate task chimes later, not now
+        self.edit_summary(lambda s: None, epoch=int(self.now) + 5)  # republished after the event
+        model = self.advance(2)
+        delta = next(i for i in model.items if i.ref == "worker|primary|delta-docs")
+        self.assertEqual(delta.detail, "delta-docs blocked: needs a token")
+        self.assertIn("worker|primary|delta-docs", self.bridge.ledger.provisional)
+        self.assertTrue(self.advance(600).chime)  # ten minutes after the ledger event
+
+    def test_a_waiting_pane_of_a_firstmate_task_does_not_ring(self):
+        self.bridge.tick(self.now)
+        self.runner.agents.append({"agent": "claude", "agent_status": "blocked", "cwd": "/work/beta",
+                                   "pane_id": "wB:p1", "terminal_title_stripped": "Approve?"})
+        model = self.advance(3)
+        self.assertEqual((model.chime, model.unseen), (False, 0))
+        self.assertNotIn("herdr|wB:p1", [i.ref for i in model.items])
+        self.runner.agents.append({"agent": "claude", "agent_status": "blocked", "cwd": "/work/mine",
+                                   "pane_id": "wZ:p1", "terminal_title_stripped": "Approve?"})
+        model = self.advance(3)
+        self.assertTrue(model.chime)  # an agent the captain started by hand rings at once
+        self.assertEqual(model.items[0].ref, "herdr|wZ:p1")
+
+    def test_without_herdr_there_is_no_fault_and_show_me_opens_only(self):
+        self.runner.herdr_missing = True
+        model = self.bridge.tick(self.now)
+        self.assertIsNone(model.link.stale_reason)
+        self.assertEqual(model.attention, "calm")
+        self.assertEqual((model.counts.herdr_working, model.counts.herdr_blocked), (0, 0))
+        self.assertEqual(model.context, Context())
+        self.assertTrue(all(c.pane is None for c in self.bridge.candidates.values()))
+        self.bridge.handle(Key("focus", "up", "decision|primary|alpha-fix|merge-alpha-12"), self.now)
+        self.assertEqual(self.executor.dry_log, ["open https://github.com/example/alpha/pull/12"])
+        self.assertEqual(self.runner.calls_for("herdr", "agent", "focus"), [])
+
     # Usage gauge
 
     def set_quota_resets(self, five_hour_in: float, week_in: float):
@@ -420,18 +529,23 @@ class BridgeTest(unittest.TestCase):
         self.bridge.handle(Key("focus", "up", "worker|primary|beta-port"), self.now)
         self.assertEqual(self.executor.dry_log, ["herdr agent focus wB:p1"])  # SHOW ME still works
 
-    def test_quiet_counts_as_away_and_return_does_not_ring_late(self):
+    def test_quiet_mutes_chimes_but_keeps_the_answer_keys(self):
+        # Firstmate treats a quiet captain as present and acts on their word at once.
         self.runner.ready["posture"] = {"state": "quiet"}
         self.bridge.tick(self.now)
         self.add_decision(self.primary, {"id": "sigma", "key": "sigma", "verb": "captain-hold", "hold_age_days": 0})
         model = self.advance(2)
-        self.assertTrue(model.link.away)
-        self.assertFalse(model.chime)
+        self.assertFalse(model.link.away)
+        self.assertEqual(model.link.posture, "quiet")
+        self.assertEqual((model.attention, model.unseen, model.chime), ("new", 1, False))
+        self.assertIn("yes", next(i for i in model.items if i.ref == "decision|primary|sigma|sigma").actions)
+        self.bridge.handle(Key("yes", "held", "decision|primary|alpha-fix|merge-alpha-12"), self.now)
+        self.assertEqual(self.advance(0.1).result.state, "queued")
+        self.assertEqual(len(self.executor.dry_log), 1)
+
         self.runner.ready["posture"] = {"state": "present"}
         model = self.advance(15)  # the next readiness poll
-        self.assertFalse(model.link.away)
-        self.assertFalse(model.chime)
-        self.assertIn("yes", next(i for i in model.items if i.ref == "decision|primary|sigma|sigma").actions)
+        self.assertFalse(model.chime)  # a chime muted in quiet mode does not ring late
 
     def test_unknown_posture_is_not_away(self):
         self.runner.ready["posture"] = {"state": "unknown"}

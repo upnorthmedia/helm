@@ -73,7 +73,7 @@ typedef struct {
     helm_tri_t firstmate_can_receive;
     helm_str_t posture;      /* or HELM_STR_NULL */
     helm_str_t stale_reason; /* or HELM_STR_NULL */
-    bool away; /* firstmate away or quiet: chimes muted, YES / LATER / HOLD locked */
+    bool away; /* firstmate away: chimes muted, YES / LATER / HOLD locked (quiet mode only mutes, bridge side) */
     bool mac_locked; /* the Mac's session is locked: every key locked, SHOW ME too */
 } helm_link_t;
 

@@ -1,26 +1,351 @@
 {
   "schema": "fm-secondmate-home-summary.v1",
-  "generated_epoch": 1000,
-  "counts": {"active_children": 3, "decisions_open": 4, "queued": 4, "landed": 2},
+  "hold_classifier_schema": "fm-captain-hold-buckets.v1",
   "contributions": {
+    "known": 4,
+    "checked": 4,
+    "counts": {
+      "captain": 3,
+      "fleet": 1,
+      "maintainer": 0,
+      "nobody": 0
+    },
+    "unmeasured": 0,
+    "complete": true,
+    "proven_clear": false,
+    "stale_verdicts": 0,
+    "missing_verdicts": 0,
+    "unreadable_records": 0,
+    "valid_until": 1794356100,
     "captain": [
-      {"task": "delta-docs", "url": "https://github.com/example/delta/pull/3", "kind": "pr", "head": "d3", "reason": "checks green; merge approval needed"},
-      {"task": "alpha-fix", "url": "https://github.com/example/alpha/pull/12", "kind": "pr", "head": "a12", "reason": "checks green; merge approval needed"}
-    ]
+      {
+        "task": "alpha-fix",
+        "url": "https://github.com/example/alpha/pull/12",
+        "kind": "pr",
+        "head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "reason": "checks green; merge approval needed",
+        "hold": null,
+        "verdict_freshness": null,
+        "verdict_head": null,
+        "verdict_source": null,
+        "checked_at": "2026-11-11T00:00:00Z"
+      },
+      {
+        "task": "delta-docs",
+        "url": "https://github.com/example/delta/pull/3",
+        "kind": "pr",
+        "head": "dddddddddddddddddddddddddddddddddddddddd",
+        "reason": "checks green; merge approval needed",
+        "hold": null,
+        "verdict_freshness": null,
+        "verdict_head": null,
+        "verdict_source": null,
+        "checked_at": "2026-11-11T00:00:00Z"
+      },
+      {
+        "task": "theta-cut",
+        "url": "https://github.com/example/theta/pull/5",
+        "kind": "pr",
+        "head": "ffffffffffffffffffffffffffffffffffffffff",
+        "reason": "ship the cut before the freeze, or wait for the next train? (recommend wait)",
+        "hold": "theta-cut",
+        "verdict_freshness": null,
+        "verdict_head": null,
+        "verdict_source": null,
+        "checked_at": "2026-11-11T00:00:00Z"
+      }
+    ],
+    "captain_omitted": 0
   },
-  "decisions_open": [
-    {"id": "widget-pricing", "key": "widget-pricing", "verb": "captain-hold", "summary": "Widget pricing plan", "question": "Pick a pricing plan for the widget shop: A or B (recommend A).", "reason": "needs a pick", "hold_bucket": "live", "hold_age_days": 3, "source": "backlog"},
-    {"id": "alpha-fix", "key": "merge-alpha-12", "verb": "needs-decision", "summary": "Alpha https://github.com/example/alpha/pull/12 checks green; merge?", "reason": null, "source": "status"},
-    {"id": "beta-port", "key": "merge-beta-7", "verb": "needs-decision", "summary": "Beta https://github.com/example/beta/pull/7 ready for merge", "reason": null, "source": "status"},
-    {"id": "mate1", "key": "captain-hold-gamma-choice-1", "verb": "needs-decision", "summary": "captain hold gamma-choice", "reason": null, "source": "status"}
-  ],
+  "generated": "2026-11-11T00:00:00Z",
+  "generated_epoch": 1794355200,
+  "home": "fixture/primary",
+  "valid": true,
+  "reason": null,
+  "invalidity": {
+    "kind": null,
+    "ids": []
+  },
+  "state": "captain_decision",
   "active_children": [
-    {"id": "alpha-fix", "kind": "ship", "state": "working", "repo": "alpha", "name": "Alpha fix", "doing": "tests"},
-    {"id": "beta-port", "kind": "ship", "state": "blocked", "repo": "beta", "name": "Beta port", "doing": "waiting on credentials"},
-    {"id": "delta-docs", "kind": "ship", "state": "working", "repo": "delta", "name": "Delta docs", "doing": "docs"}
+    {
+      "id": "delta-docs",
+      "kind": "ship",
+      "state": "working",
+      "repo": "delta",
+      "name": "Delta docs",
+      "source": "pane",
+      "doing": "watching CI"
+    }
+  ],
+  "decisions_open": [
+    {
+      "id": "theta-cut",
+      "key": "theta-cut",
+      "verb": "captain-hold",
+      "summary": "Theta cut",
+      "reason": "ship the cut before the freeze, or wait for the next train? (recommend wait)",
+      "question": "Theta cut: ship the cut before the freeze, or wait for the next train? (recommend wait)",
+      "hold_until": null,
+      "hold_bucket": "live",
+      "hold_age_days": 1,
+      "source": "backlog"
+    },
+    {
+      "id": "widget-pricing",
+      "key": "widget-pricing",
+      "verb": "captain-hold",
+      "summary": "Widget pricing plan",
+      "reason": "pick a pricing plan for the widget shop, A or B (recommend A).",
+      "question": "Widget pricing plan: pick a pricing plan for the widget shop, A or B (recommend A).",
+      "hold_until": null,
+      "hold_bucket": "live",
+      "hold_age_days": 3,
+      "source": "backlog"
+    },
+    {
+      "id": "alpha-fix",
+      "key": "merge-alpha-12",
+      "verb": "needs-decision",
+      "summary": "PR https://github.com/example/alpha/pull/12 checks green; merge?",
+      "reason": null,
+      "source": "status"
+    },
+    {
+      "id": "mate1",
+      "key": "captain-hold-gamma-choice-1",
+      "verb": "needs-decision",
+      "summary": "captain hold gamma-choice",
+      "reason": null,
+      "source": "status"
+    },
+    {
+      "id": "omega-ci",
+      "key": "merge-omega-7",
+      "verb": "needs-decision",
+      "summary": "PR https://github.com/example/omega/pull/7 ready for merge",
+      "reason": null,
+      "source": "status"
+    }
+  ],
+  "holds": [
+    {
+      "id": "theta-cut",
+      "title": "Theta cut",
+      "blocked_by": null,
+      "blocked_by_ids": [],
+      "unresolved_blocker_ids": [],
+      "reason": "ship the cut before the freeze, or wait for the next train? (recommend wait)",
+      "source": "backlog"
+    },
+    {
+      "id": "widget-pricing",
+      "title": "Widget pricing plan",
+      "blocked_by": null,
+      "blocked_by_ids": [],
+      "unresolved_blocker_ids": [],
+      "reason": "pick a pricing plan for the widget shop, A or B (recommend A).",
+      "source": "backlog"
+    },
+    {
+      "id": "alpha-fix",
+      "title": "alpha-fix",
+      "blocked_by": null,
+      "blocked_by_ids": [],
+      "unresolved_blocker_ids": [],
+      "reason": "needs-decision: merge-alpha-12",
+      "source": "child-state"
+    },
+    {
+      "id": "beta-port",
+      "title": "beta-port",
+      "blocked_by": null,
+      "blocked_by_ids": [],
+      "unresolved_blocker_ids": [],
+      "reason": "waiting on credentials",
+      "source": "child-state"
+    },
+    {
+      "id": "omega-ci",
+      "title": "omega-ci",
+      "blocked_by": null,
+      "blocked_by_ids": [],
+      "unresolved_blocker_ids": [],
+      "reason": "needs-decision: merge-omega-7",
+      "source": "child-state"
+    }
+  ],
+  "queued": [
+    {
+      "id": "zeta-later",
+      "title": "Zeta later",
+      "question": null,
+      "blocked_by": null,
+      "blocked_by_ids": [],
+      "unresolved_blocker_ids": [],
+      "blocked_reason": null,
+      "hold_reason": null,
+      "hold_kind": null,
+      "hold_until": null,
+      "hold_bucket": null,
+      "hold_age_days": null,
+      "captain_actionable": false,
+      "repo": "zeta",
+      "kind": "ship",
+      "since": "2026-11-09"
+    },
+    {
+      "id": "theta-cut",
+      "title": "Theta cut",
+      "question": "Theta cut: ship the cut before the freeze, or wait for the next train? (recommend wait)",
+      "blocked_by": null,
+      "blocked_by_ids": [],
+      "unresolved_blocker_ids": [],
+      "blocked_reason": null,
+      "hold_reason": "ship the cut before the freeze, or wait for the next train? (recommend wait)",
+      "hold_kind": "captain",
+      "hold_until": null,
+      "hold_bucket": "live",
+      "hold_age_days": 1,
+      "captain_actionable": true,
+      "repo": "theta",
+      "kind": "ship",
+      "since": "2026-11-09"
+    },
+    {
+      "id": "widget-pricing",
+      "title": "Widget pricing plan",
+      "question": "Widget pricing plan: pick a pricing plan for the widget shop, A or B (recommend A).",
+      "blocked_by": null,
+      "blocked_by_ids": [],
+      "unresolved_blocker_ids": [],
+      "blocked_reason": null,
+      "hold_reason": "pick a pricing plan for the widget shop, A or B (recommend A).",
+      "hold_kind": "captain",
+      "hold_until": null,
+      "hold_bucket": "live",
+      "hold_age_days": 3,
+      "captain_actionable": true,
+      "repo": "widget-shop",
+      "kind": "captain",
+      "since": "2026-11-08"
+    }
   ],
   "landed": [
-    {"id": "eps-old", "title": "Old work", "pr_url": "https://github.com/example/eps/pull/1", "completion": {"date": "2000-01-01", "verb": "merged"}},
-    {"id": "eps-new", "title": "New work", "pr_url": "https://github.com/example/eps/pull/2", "completion": {"date": "TODAY", "verb": "merged"}}
-  ]
+    {
+      "id": "eps-new",
+      "title": "New work",
+      "kind": "ship",
+      "hold_kind": null,
+      "pr_url": "https://github.com/example/eps/pull/2",
+      "report_path": null,
+      "local_note": null,
+      "completion": {
+        "date": "TODAY",
+        "verb": "merged"
+      }
+    },
+    {
+      "id": "eps-old",
+      "title": "Old work",
+      "kind": "ship",
+      "hold_kind": null,
+      "pr_url": "https://github.com/example/eps/pull/1",
+      "report_path": null,
+      "local_note": null,
+      "completion": {
+        "date": "2000-01-01",
+        "verb": "merged"
+      }
+    }
+  ],
+  "endpoints": [
+    {
+      "id": "alpha-fix",
+      "state": "parked",
+      "source": "status-log",
+      "endpoint": {
+        "target": "fm-alpha-fix",
+        "exists": true,
+        "agent_alive": "not_checked",
+        "status": "unknown",
+        "observed_at": "2026-11-11T00:00:00Z",
+        "freshness": "fresh"
+      }
+    },
+    {
+      "id": "beta-port",
+      "state": "blocked",
+      "source": "status-log",
+      "endpoint": {
+        "target": "fm-beta-port",
+        "exists": true,
+        "agent_alive": "not_checked",
+        "status": "unknown",
+        "observed_at": "2026-11-11T00:00:00Z",
+        "freshness": "fresh"
+      }
+    },
+    {
+      "id": "delta-docs",
+      "state": "working",
+      "source": "pane",
+      "endpoint": {
+        "target": "fm-delta-docs",
+        "exists": true,
+        "agent_alive": "not_checked",
+        "status": "unknown",
+        "observed_at": "2026-11-11T00:00:00Z",
+        "freshness": "fresh"
+      }
+    },
+    {
+      "id": "mate1",
+      "state": "working",
+      "source": "remote-endpoint",
+      "endpoint": {
+        "target": "fm-mate1",
+        "exists": true,
+        "agent_alive": "alive",
+        "status": "alive",
+        "observed_at": "2026-11-11T00:00:00Z",
+        "freshness": "fresh"
+      }
+    },
+    {
+      "id": "omega-ci",
+      "state": "parked",
+      "source": "status-log",
+      "endpoint": {
+        "target": "fm-omega-ci",
+        "exists": true,
+        "agent_alive": "not_checked",
+        "status": "unknown",
+        "observed_at": "2026-11-11T00:00:00Z",
+        "freshness": "fresh"
+      }
+    },
+    {
+      "id": "theta-cut",
+      "state": "parked",
+      "source": "status-log",
+      "endpoint": {
+        "target": "fm-theta-cut",
+        "exists": true,
+        "agent_alive": "not_checked",
+        "status": "unknown",
+        "observed_at": "2026-11-11T00:00:00Z",
+        "freshness": "fresh"
+      }
+    }
+  ],
+  "counts": {
+    "active_children": 1,
+    "decisions_open": 5,
+    "holds": 5,
+    "queued": 3,
+    "landed": 2,
+    "endpoints": 6
+  },
+  "omitted": []
 }

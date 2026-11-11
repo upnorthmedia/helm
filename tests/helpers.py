@@ -65,14 +65,34 @@ def lavish_listing(*rows: tuple[str, str, str]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def date_summary(path: Path, now: float | None = None) -> None:
+    """Date a fixture summary to now: the 'landed today' row, and each captain row as freshly checked.
+
+    The fixtures are firstmate's own projection of fixed inputs (tests/fixtures/README.md),
+    generated at a fixed time, so the dates that matter are filled in when a test copies them.
+    """
+    now = time.time() if now is None else now
+    summary = json.loads(path.read_text().replace("TODAY", time.strftime("%Y-%m-%d", time.localtime(now))))
+    checked = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now))
+    for row in (summary.get("contributions") or {}).get("captain") or []:
+        row["checked_at"] = checked
+    path.write_text(json.dumps(summary, indent=2))
+
+
+def use_variant(primary: Path, name: str) -> None:
+    """Replace the primary's summary with a variant from tests/fixtures/variants, dated like make_homes does."""
+    summary = primary / "state" / "home-summary.json"
+    shutil.copyfile(FIXTURES / "variants" / ("%s-home-summary.json" % name), summary)
+    date_summary(summary)
+
+
 def make_homes(tmp: Path) -> tuple[Path, Path]:
-    """Copy the fixture homes into tmp, date the 'landed today' row, and list the second mate."""
+    """Copy the fixture homes into tmp, date them, and list the second mate."""
     primary = tmp / "primary"
     mate = tmp / "mate1"
     shutil.copytree(FIXTURES / "primary", primary)
     shutil.copytree(FIXTURES / "mate1", mate)
-    summary = primary / "state" / "home-summary.json"
-    summary.write_text(summary.read_text().replace("TODAY", time.strftime("%Y-%m-%d")))
+    date_summary(primary / "state" / "home-summary.json")
     (primary / "data").mkdir(exist_ok=True)
     (primary / "data" / "secondmates.md").write_text(
         "- mate1 - Own the gamma project. Hard rules: none (home: %s; scope: gamma; projects: gamma; added 2026-11-09)\n"
@@ -108,6 +128,7 @@ class FakeRunner:
         self.envs: list[dict] = []
         self.ready: dict | None = dict(READY_OK)
         self.agents: list[dict] | None = herdr_agents(primary)
+        self.herdr_missing = False  # herdr not installed: the real Runner answers 127
         self.note_rc = 0
         self.note_outcome = "created"
         self.note_path = "/x"
@@ -129,6 +150,8 @@ class FakeRunner:
         if sig == ("fm-inbox.sh", "ready"):
             return Completed(0, json.dumps(self.ready), "") if self.ready else Completed(1, "", "boom")
         if sig == ("herdr", "agent", "list"):
+            if self.herdr_missing:
+                return Completed(127, "", "[Errno 2] No such file or directory: 'herdr'")
             if self.agents is None:
                 return Completed(1, "", "no herdr")
             return Completed(0, json.dumps({"id": "cli:agent:list", "result": {"agents": self.agents}}), "")

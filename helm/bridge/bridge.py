@@ -13,7 +13,8 @@ from helm.contract import (Context, Counts, Hello, Key, Knob, KnobPress, Link, M
 from helm.bridge.attention import Attention
 from helm.bridge.context import context_gauge
 from helm.bridge.intents import IntentExecutor
-from helm.bridge.items import Candidate, HomeSnapshot, LedgerState, agent_title, build_candidates, finalize_items
+from helm.bridge.items import (Candidate, HomeSnapshot, LedgerState, agent_title, build_candidates, finalize_items,
+                               summary_invalid, summary_unknown, worker_problems)
 from helm.bridge.lock import LockWatch
 from helm.bridge.usage import UsagePoller
 from helm.bridge.sources import (
@@ -35,10 +36,15 @@ RESEND_S = 2.0
 RESULT_LINGER_S = 120.0
 HOMES_REFRESH_S = 60.0
 RECOVERED_MAX = 5  # replies found at start beyond the one shown, kept to show next
-# Firstmate postures (fm-inbox.sh ready) in which the deck follows away mode:
-# chimes muted, YES / LATER / HOLD locked, SHOW ME still working.
-AWAY_POSTURES = {"away", "quiet"}
+# Firstmate postures (fm-inbox.sh ready). Away: the captain is gone, so the deck
+# mutes chimes and locks YES / LATER / HOLD; SHOW ME still works. Quiet: firstmate
+# treats a quiet captain as present and acts on their word at once, so the deck only
+# mutes chimes. A captain inbox note still wakes firstmate in quiet mode.
+AWAY_POSTURES = {"away"}
+MUTED_POSTURES = {"away", "quiet"}
 ACTING_KEYS = {"yes", "later", "hold"}
+# `herdr agent list` exited 127: herdr is not installed (firstmate's default backend is tmux).
+HERDR_MISSING_RC = 127
 
 
 class Every:
@@ -78,6 +84,8 @@ class Bridge:
         self.ready_error: Optional[str] = "not checked yet"
         self.agents: list[dict] = []
         self.herdr_error: Optional[str] = None
+        self.herdr_installed: Optional[bool] = None  # unknown until the first `herdr agent list`
+        self._invalid_logged: dict[str, str] = {}  # home label -> invalid reason last logged
         self.candidates: dict[str, Candidate] = {}
         self.counts = Counts()
         self.result: Optional[Result] = None
@@ -135,10 +143,13 @@ class Bridge:
         if self._herdr_tick.due(now):
             done = self.runner.run(["herdr", "agent", "list"], timeout=5)
             agents = parse_herdr_agents(done.stdout) if done.returncode == 0 else None
-            if agents is None:
-                self.herdr_error = "herdr unavailable"
+            if done.returncode == HERDR_MISSING_RC:
+                # Not a fault: without herdr there are no panes to count or focus.
+                self.agents, self.herdr_error, self.herdr_installed = [], None, False
+            elif agents is None:
+                self.herdr_error, self.herdr_installed = "herdr unavailable", True
             else:
-                self.agents, self.herdr_error = agents, None
+                self.agents, self.herdr_error, self.herdr_installed = agents, None, True
             self._dirty = True
         if self.usage.poll(now):
             self._dirty = True
@@ -159,6 +170,33 @@ class Bridge:
     def away(self) -> bool:
         return self._posture() in AWAY_POSTURES
 
+    def muted(self) -> bool:
+        return self._posture() in MUTED_POSTURES
+
+    def _invalid_summaries(self) -> list[str]:
+        """'<home> summary invalid: <reason>' for each home whose summary says valid is false."""
+        out = []
+        for label, readers in self.readers.items():
+            reason = summary_invalid(readers.summary.data)
+            if reason:
+                out.append("%s summary invalid: %s" % (label, reason))
+        return out
+
+    def _summary_unknown(self) -> bool:
+        """Some home's summary is invalid in a way firstmate itself reads as unknown."""
+        return any(summary_unknown(r.summary.data) for r in self.readers.values())
+
+    def _log_invalid(self) -> None:
+        """Log each home's invalid-summary reason once when it appears or changes, and when it clears."""
+        current = {label: reason for label, r in self.readers.items()
+                   if (reason := summary_invalid(r.summary.data))}
+        for label, reason in current.items():
+            if self._invalid_logged.get(label) != reason:
+                log.warning("%s summary invalid: %s", label, reason)
+        for label in self._invalid_logged.keys() - current.keys():
+            log.info("%s summary valid again", label)
+        self._invalid_logged = current
+
     def _link(self) -> Link:
         can_receive = self.ready.get("can_receive") if self.ready else None
         posture = self._posture()
@@ -170,6 +208,7 @@ class Bridge:
         for label, readers in self.readers.items():
             if readers.summary.error:
                 reasons.append("%s summary %s" % (label, readers.summary.error))
+        reasons.extend(self._invalid_summaries())
         if self.herdr_error:
             reasons.append(self.herdr_error)
         return Link(
@@ -188,9 +227,16 @@ class Bridge:
             for r in self.readers.values()
             if isinstance(r.summary.data, dict) and isinstance(r.summary.data.get("generated_epoch"), (int, float))
         }
-        self.ledger.expire(now, epochs)
-        candidates, self.counts = build_candidates(snapshots, self.ledger, self.agents, now)
-        self.attention.observe([c.item.ref for c in candidates], now, edges)
+        self._log_invalid()
+        problems = worker_problems(snapshots)
+        self.ledger.expire(now, epochs, keep=frozenset(problems))
+        candidates, self.counts = build_candidates(snapshots, self.ledger, self.agents, now,
+                                                   panes=self.herdr_installed is not False)
+        # A stuck firstmate task lights at once and chimes only if still stuck later:
+        # from its ledger event's time when the fleet ledger reported it, else from now.
+        deferred = {c.item.ref: getattr(self.ledger.provisional.get(c.item.ref), "ts", None)
+                    for c in candidates if c.item.kind == "worker_problem" and not c.informational}
+        self.attention.observe([c.item.ref for c in candidates if not c.informational], now, edges, deferred)
         self.candidates = {c.item.ref: c for c in candidates}
         self._dirty = False
 
@@ -200,6 +246,11 @@ class Bridge:
             self.result_at = now
         link = self._link()
         items = finalize_items(list(self.candidates.values()), self.attention, now)
+        attention = self.attention.state(link.firstmate_can_receive is True)
+        if attention == "calm" and self._summary_unknown():
+            # Firstmate reads that home's state as unknown, so the deck does too. An inventory
+            # mismatch keeps the home's state; either way link.stale_reason says why.
+            attention = "unknown"
         if link.mac_locked:
             # Nothing acts on a locked Mac, SHOW ME included, so even an older deck keeps every key dark.
             items = [replace(item, actions=[]) for item in items]
@@ -209,14 +260,15 @@ class Bridge:
         return Model(
             seq=self.seq,
             link=link,
-            attention=self.attention.state(link.firstmate_can_receive is True),
+            attention=attention,
             unseen=self.attention.unseen_count,
             counts=self.counts,
             items=items,
             result=self.result,
             chime=False,
             usage=self.usage.usage(now),
-            context=Context() if self.herdr_error else context_gauge(self.agents, agent_title),
+            context=Context() if self.herdr_error or self.herdr_installed is False
+            else context_gauge(self.agents, agent_title),
         )
 
     # Sending.
@@ -225,6 +277,7 @@ class Bridge:
         """Poll what is due, and send the Model when it changed or 2 s have passed. Returns what was sent."""
         now = self.clock() if now is None else now
         self.poll_sources(now)
+        self.attention.fire_due(now)  # a deferred chime lights its item in this model
         model = self.build_model(now)
         body = asdict(model)
         body.pop("seq")
@@ -233,8 +286,8 @@ class Bridge:
         for name in ("five_hour_resets_s", "week_resets_s"):
             body["usage"].pop(name)  # counts down every second, like age_s
         changed = body != self._last_sent
-        # Taken even while away, so a muted chime does not ring on return.
-        chime = self.attention.take_chime() and not model.link.away
+        # Taken even while muted, so a muted chime does not ring on return.
+        chime = self.attention.take_chime() and not self.muted()
         if not (changed or chime or now - self._last_sent_at >= RESEND_S):
             return None
         self.seq += 1
