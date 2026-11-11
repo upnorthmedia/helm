@@ -282,7 +282,10 @@ class BuildCandidatesTest(unittest.TestCase):
         report.parent.mkdir(parents=True)
         report.write_text("# Widget pricing\n")
         cands, _ = self.build(agents=[])
-        actions = lambda ref: cands[ref].item.actions
+
+        def actions(ref):
+            return cands[ref].item.actions
+
         # Pane only: the blocked worker has its own pane and no PR or report.
         self.assertIn("focus", actions(worker_ref("primary", "beta-port")))
         # PR only: no pane, but a PR to open.

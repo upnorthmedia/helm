@@ -65,6 +65,8 @@ if [ -z "$fm_home" ]; then
   fm_home="${FM_HOME:-}"
   [ -n "$fm_home" ] || die "no firstmate home: pass --home or set FM_HOME"
 fi
+# Match a literal tilde the shell left unexpanded (a quoted --home "~/x").
+# shellcheck disable=SC2088
 case "$fm_home" in
   "~"|"~/"*) fm_home="$HOME${fm_home#\~}" ;;
 esac
