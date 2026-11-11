@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 firmware/build/
 case/.venv/
+todo.md
