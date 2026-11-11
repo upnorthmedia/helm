@@ -283,6 +283,22 @@ static const char *str(const helm_model_t *m, helm_str_t s)
     return v != NULL ? v : "";
 }
 
+/* "YES sent" while the item's answer waits on firstmate's reply, as render.answer_tag; false when none. */
+static bool answer_tag(char *out, size_t cap, const helm_item_t *item)
+{
+    if (!item->has_pending) {
+        return false;
+    }
+    snprintf(out, cap, "%s sent", KEY_LABELS[item->pending]);
+    return true;
+}
+
+/* The width the simulator gives a run of Menlo text (CHAR_W = 0.602 em), so cuts land in the same places. */
+static int32_t menlo_width(const char *s, int size)
+{
+    return (int32_t)strlen(s) * size * 602 / 1000;
+}
+
 /* One usage window: "5h 62% for 1h", "5h 62%", or "5h ?". */
 static void usage_part(char *out, size_t cap, const char *name, helm_opt_int_t left, helm_opt_int_t resets)
 {
@@ -383,7 +399,7 @@ static void status_strip(lv_obj_t *p, const helm_deck_t *deck, uint32_t now)
 }
 
 /* One item as a row, as sim/render.py _item_row: tinted strip, short id, kind
- * and project, NEW, age. Home's column uses the small size (id_size < 34). */
+ * and project (and the answer sent), NEW, age. Home's column uses the small size (id_size < 34). */
 static void item_row(lv_obj_t *p, const helm_model_t *m, const helm_item_t *item, int32_t x0, int32_t x1, int32_t y,
                      int32_t h, bool selected, int id_size)
 {
@@ -403,7 +419,15 @@ static void item_row(lv_obj_t *p, const helm_model_t *m, const helm_item_t *item
     } else {
         snprintf(buf, sizeof buf, "%s", kind_label(item->kind));
     }
-    text(p, x0 + 36, y + h - 30, text_w, buf, C_DIM, 20, A_NW);
+    int32_t kind_w = text_w;
+    char tag[24];
+    if (answer_tag(tag, sizeof tag, item)) {
+        /* Right-aligned at the end of the text, in its key's color; the kind line gives way. */
+        int32_t tag_w = menlo_width(tag, 20);
+        text(p, x0 + 36 + text_w, y + h - 30, tag_w + 20, tag, KEY_COLORS[item->pending], 20, A_NE);
+        kind_w = text_w - tag_w - 20;
+    }
+    text(p, x0 + 36, y + h - 30, kind_w, buf, C_DIM, 20, A_NW);
     age(buf, sizeof buf, item->age_s);
     text(p, x1 - 24, y + h / 2, 100, buf, C_DIM, small ? 24 : 28, A_E);
     if (item->unseen) {
@@ -553,7 +577,14 @@ static void detail(lv_obj_t *p, helm_deck_t *deck)
     } else {
         snprintf(buf, sizeof buf, "home %s%s   age %s", str(m, item->home), project, when);
     }
-    text(p, 40, 136, SCREEN_W - 80, buf, C_DIM, 22, A_NW);
+    int32_t meta_w = SCREEN_W - 80;
+    char tag[24];
+    if (answer_tag(tag, sizeof tag, item)) {
+        int32_t tag_w = menlo_width(tag, 22);
+        text(p, SCREEN_W - 40, 136, tag_w + 30, tag, KEY_COLORS[item->pending], 22, A_NE);
+        meta_w -= tag_w + 30;
+    }
+    text(p, 40, 136, meta_w, buf, C_DIM, 22, A_NW);
 
     const int32_t line_h = 38, top = 186, bottom = TOUCH_KEYS ? 580 : 620;
     lv_obj_t *body = paragraph(p, 40, top, SCREEN_W - 80, bottom - top, str(m, item->detail), C_TEXT, 26, line_h);
@@ -634,8 +665,8 @@ static void result(lv_obj_t *p, const helm_deck_t *deck, bool waited)
         body = deck->pending_text;
         switch (deck->pending_state) {
         case HELM_RESULT_QUEUED:
-            label = "Queued";
-            color = C_BLUE;
+            label = deck->pending_seen ? "Seen" : "Queued";
+            color = !deck->pending_seen && deck->pending_stalled ? C_AMBER : C_BLUE;
             break;
         case HELM_RESULT_REPLIED:
             label = "Replied";
@@ -649,6 +680,21 @@ static void result(lv_obj_t *p, const helm_deck_t *deck, bool waited)
     }
     rect(p, 40, 160, 300, 220, color);
     text(p, 170, 190, 250, label, C_SCREEN, 30, A_CENTER);
+    /* A queued note's progress, as render.result_progress. */
+    if (deck->pending_has_result && deck->pending_state == HELM_RESULT_QUEUED && deck->pending_waited_s.known) {
+        char sent[16];
+        age(sent, sizeof sent, deck->pending_waited_s.value);
+        uint32_t line_color = C_DIM;
+        if (deck->pending_seen) {
+            snprintf(buf, sizeof buf, "sent %s ago, firstmate has read it", sent);
+        } else if (deck->pending_stalled) {
+            snprintf(buf, sizeof buf, "firstmate has not picked this up: sent %s ago", sent);
+            line_color = C_AMBER;
+        } else {
+            snprintf(buf, sizeof buf, "sent %s ago, waiting for firstmate to read it", sent);
+        }
+        text(p, 330, 190, SCREEN_W - 370, buf, line_color, 26, A_W);
+    }
     const int32_t line_h = 42, lines = TOUCH_KEYS ? 7 : 9;
     paragraph(p, 40, 260, SCREEN_W - 80, lines * line_h, body, C_TEXT, 28, line_h);
 #if TOUCH_KEYS

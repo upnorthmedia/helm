@@ -375,6 +375,9 @@ static void on_model(helm_deck_t *deck, uint32_t now)
     if (deck->pending && m->has_result && m->seq > deck->pending_seq_after) {
         deck->pending_has_result = true;
         deck->pending_state = m->result.state;
+        deck->pending_seen = m->result.seen;
+        deck->pending_waited_s = m->result.waited_s;
+        deck->pending_stalled = m->result.stalled;
         copy_display(deck->pending_text, sizeof deck->pending_text, helm_model_str(m, m->result.text));
         if (m->result.state != HELM_RESULT_QUEUED && !deck->pending_final) {
             deck->pending_final = true;
@@ -476,6 +479,9 @@ void helm_deck_tick(helm_deck_t *deck, uint32_t now_ms)
         copy_display(deck->pending_short_id, sizeof deck->pending_short_id,
                      item != NULL ? helm_model_str(m, item->short_id) : "");
         deck->pending_has_result = false;
+        deck->pending_seen = false;
+        deck->pending_waited_s.known = false;
+        deck->pending_stalled = false;
         deck->pending_text[0] = '\0';
         deck->pending_final = false;
         deck->screen = HELM_SCREEN_RESULT;

@@ -118,6 +118,48 @@ class Codec(unittest.TestCase):
         self.assertEqual(codec.decode_model(_payload(codec.encode_model(locked))), locked)
         self.assertEqual(codec.decode_model(_payload(codec.encode_model(fixtures.stale()))).context, c.Context())
 
+    def test_answer_fields_parse_in_old_and_new_frames(self):
+        """Item.pending and the result's seen, waited_s, and stalled are optional keys on the wire."""
+        for m in (fixtures.answered(), fixtures.stalled()):
+            with self.subTest(seq=m.seq):
+                new = _payload(codec.encode_model(m))
+                self.assertEqual(codec.decode_model(new), m)
+                # The frame an older bridge sends: none of the keys.
+                obj = json.loads(new)
+                for item in obj["items"]:
+                    item.pop("pending")
+                for key in ("seen", "waited_s", "stalled"):
+                    obj["result"].pop(key)
+                old = codec.decode_model(json.dumps(obj).encode())
+                self.assertTrue(all(i.pending is None for i in old.items))
+                self.assertEqual((old.result.seen, old.result.waited_s, old.result.stalled), (False, None, False))
+                self.assertEqual(old.result.text, m.result.text)
+
+    def test_a_new_frame_keeps_to_the_values_an_older_deck_knows(self):
+        """An older deck skips keys it does not know but refuses an enum value it does not know, so seen and
+        stalled ride beside state "queued" and every enum keeps its first-release values."""
+        self.assertEqual(codec.RESULT_STATES, ("queued", "replied", "failed"))
+        self.assertEqual(codec.ACTIONS, ("yes", "later", "hold", "focus"))
+        for m in (fixtures.answered(), fixtures.stalled()):
+            obj = json.loads(_payload(codec.encode_model(m)))
+            self.assertEqual(obj["result"]["state"], "queued")
+        obj = json.loads(_payload(codec.encode_model(fixtures.answered())))
+        obj["result"]["state"] = "seen"
+        with self.assertRaises(codec.DecodeError):
+            codec.decode_model(json.dumps(obj).encode())
+
+    def test_rejects_bad_answer_fields(self):
+        good = json.loads(_payload(codec.encode_model(fixtures.stalled())))
+        for where, name, value in [("item", "pending", "focus"), ("item", "pending", "nope"), ("item", "pending", 1),
+                                   ("result", "seen", "yes"), ("result", "seen", 1), ("result", "stalled", 0),
+                                   ("result", "waited_s", -1), ("result", "waited_s", "5"),
+                                   ("result", "waited_s", True), ("result", "waited_s", 2.5)]:
+            with self.subTest(name=name, value=value):
+                obj = json.loads(json.dumps(good))
+                (obj["items"][0] if where == "item" else obj["result"])[name] = value
+                with self.assertRaises(codec.DecodeError):
+                    codec.decode_model(json.dumps(obj).encode())
+
     def test_rejects_bad_context_and_lock(self):
         good = json.loads(_payload(codec.encode_model(fixtures.busy())))
         for name, value in [("top_used", 101), ("top_used", -1), ("top_used", "50"), ("top_used", True),

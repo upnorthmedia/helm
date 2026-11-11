@@ -12,7 +12,7 @@ from unittest import mock
 
 from helm.contract import Item
 from helm.bridge.commands import Runner
-from helm.bridge.intents import ADOPT_MAX_AGE_S, YES_PREFIX, IntentExecutor, note_text, request_id
+from helm.bridge.intents import ADOPT_MAX_AGE_S, YES_PREFIX, IntentExecutor, intent_of, note_text, request_id
 from helm.bridge.items import Candidate
 from tests.helpers import FakeRunner
 
@@ -91,6 +91,23 @@ class NoteTextTest(unittest.TestCase):
                          "Captain, from the Helm deck: do not proceed on `widget-pricing` / `widget-pricing`. "
                          "Raise it with me in chat.")
         self.assertIn("(second mate home `mate1`)", note_text("yes", merge_ask("mate1"), NOW))
+
+
+class LinkedAnswerTextTest(unittest.TestCase):
+    def test_hold_and_later_after_a_yes_name_its_request_id(self):
+        rid = "helm-yes-primary-alpha-fix-merge-alpha-12-20261111"
+        hold = note_text("hold", merge_ask(), NOW, replaces_yes=rid)
+        self.assertEqual(hold, "Captain, from the Helm deck: do not proceed on `alpha-fix` / `merge-alpha-12`. "
+                               "This replaces my earlier YES on it (request `%s`). Raise it with me in chat." % rid)
+        later = note_text("later", merge_ask(), NOW, replaces_yes=rid)
+        self.assertEqual(later, "Captain, from the Helm deck: defer `alpha-fix` / `merge-alpha-12` until %s. "
+                                "This replaces my earlier YES on it (request `%s`)." % (tomorrow(NOW), rid))
+
+    def test_intent_of_reads_only_helm_request_ids(self):
+        self.assertEqual(intent_of("helm-yes-primary-a-b-20261111"), "yes")
+        self.assertEqual(intent_of("helm-hold-primary-a-b-20261111"), "hold")
+        for rid in ("helm-focus-primary-a-b", "voice-17", "helm-yes", None, 7):
+            self.assertEqual(intent_of(rid), "")
 
 
 class RequestIdTest(unittest.TestCase):
@@ -274,6 +291,60 @@ class ExecutorTest(unittest.TestCase):
         ex = self.executor(runner)
         self.assertEqual(ex.note("hold", plain_decision()).text, "answered earlier: HOLD on widget-pricing, no reply yet")
 
+    def test_receipts_mark_a_note_seen_once_firstmate_reads_it(self):
+        runner = FakeRunner(self.home, allow_writes=True)
+        ex = self.executor(runner)
+        result = ex.note("yes", merge_ask())
+        runner.receipts["pending"] = [{"id": "note-1", "acknowledged": False, "reply": None}]
+        self.assertEqual(ex.check_receipts(), [])
+        self.assertFalse(ex.pending[result.request_id].seen)
+        runner.receipts.update(pending=[], handled=[{"id": "note-1", "acknowledged": True, "reply": None}])
+        self.assertEqual(ex.check_receipts(), [])  # read, not answered: no result yet
+        self.assertTrue(ex.pending[result.request_id].seen)
+        runner.receipts["handled"] = []  # pushed out of the bounded list: still seen
+        ex.check_receipts()
+        self.assertTrue(ex.pending[result.request_id].seen)
+
+    def test_hold_after_a_waiting_yes_names_it_and_after_its_reply_does_not(self):
+        runner = FakeRunner(self.home, allow_writes=True)
+        ex = self.executor(runner)
+        yes = ex.note("yes", merge_ask())
+        runner.note_id = "note-2"
+        ex.note("hold", merge_ask())
+        hold_text = runner.calls_for("fm-inbox.sh", "note")[-1][-1]
+        self.assertIn("This replaces my earlier YES on it (request `%s`)." % yes.request_id, hold_text)
+        # A YES on another item is not this item's.
+        runner.note_id = "note-3"
+        ex.note("later", plain_decision())
+        self.assertNotIn("replaces", runner.calls_for("fm-inbox.sh", "note")[-1][-1])
+
+        runner.receipts["handled"] = [{"id": "note-1", "acknowledged": True, "reply": {"body": "Not merged: held."}}]
+        ex.check_receipts()
+        runner.note_id = "note-4"
+        ex.note("later", merge_ask())
+        self.assertNotIn("replaces", runner.calls_for("fm-inbox.sh", "note")[-1][-1])
+
+    def test_answered_is_the_latest_waiting_answer_for_this_item_instance(self):
+        runner = FakeRunner(self.home, allow_writes=True)
+        clock = [NOW]
+        ex = self.executor(runner, clock=lambda: clock[0])
+        ex.note("yes", pr_ready())
+        self.assertEqual(ex.answered([pr_ready(), merge_ask()]), {pr_ready().item.ref: "yes"})
+        clock[0] += 30
+        runner.note_id = "note-2"
+        ex.note("hold", pr_ready())
+        self.assertEqual(ex.answered([pr_ready()]), {pr_ready().item.ref: "hold"})
+        # A new commit on the PR is a new ask: nothing sent for it yet.
+        self.assertEqual(ex.answered([pr_ready(NEW_HEAD)]), {})
+        runner.receipts["handled"] = [{"id": "note-2", "acknowledged": True, "reply": {"body": "Holding."}}]
+        ex.check_receipts()
+        self.assertEqual(ex.answered([pr_ready()]), {pr_ready().item.ref: "yes"})
+
+    def test_a_dry_run_has_nothing_answered(self):
+        ex = self.executor(FakeRunner(self.home, allow_writes=False), dry_run=True)
+        ex.note("yes", pr_ready())
+        self.assertEqual(ex.answered([pr_ready()]), {})
+
     def test_note_failure_is_a_failed_result(self):
         runner = FakeRunner(self.home, allow_writes=True)
         runner.note_rc = 1
@@ -326,6 +397,19 @@ class AdoptTest(unittest.TestCase):
         self.runner.receipts["handled"][0]["reply"] = {"body": "Deferred.", "cursor": "000000000003"}
         [reply] = ex.check_receipts()
         self.assertEqual((reply.request_id, reply.text), ("helm-later-primary-c-d-20261111", "Deferred."))
+
+    def test_adopted_notes_keep_their_intent_and_seen_and_find_their_item(self):
+        rid = request_id("yes", pr_ready(), NOW - 60)
+        seen = self.note("n1", rid)
+        seen["acknowledged"] = True
+        self.runner.receipts.update(handled=[seen], pending=[self.note("n2", "helm-hold-primary-x-y-20261111")])
+        ex = self.executor()
+        ex.adopt()
+        self.assertEqual((ex.pending[rid].intent, ex.pending[rid].seen), ("yes", True))
+        self.assertEqual(ex.pending["helm-hold-primary-x-y-20261111"].intent, "hold")
+        self.assertEqual(ex.answered([pr_ready(NEW_HEAD), merge_ask()]), {})
+        self.assertEqual(ex.answered([merge_ask(), pr_ready()]), {pr_ready().item.ref: "yes"})
+        self.assertEqual(ex.pending[rid].ref, pr_ready().item.ref)
 
     def test_replies_since_the_saved_cursor_are_shown(self):
         self.save_cursor("000000000007")
@@ -448,6 +532,22 @@ class RealInboxTest(unittest.TestCase):
         # A new commit on the same PR is a new ask.
         self.assertEqual(restarted.note("yes", pr_ready(NEW_HEAD)).text, "queued YES on delta#3")
         self.assertEqual(len(json.loads(self.firstmate("receipts"))["pending"]), 1)
+
+    def test_seen_and_a_hold_that_names_the_waiting_yes(self):
+        ex = self.executor()
+        yes = ex.note("yes", merge_ask())
+        self.assertEqual(ex.check_receipts(), [])
+        self.assertFalse(ex.pending[yes.request_id].seen)
+        [note] = json.loads(self.firstmate("receipts"))["pending"]
+        self.firstmate("drain", "--ack", note["id"])
+        self.assertEqual(ex.check_receipts(), [])
+        self.assertTrue(ex.pending[yes.request_id].seen)
+
+        hold = ex.note("hold", merge_ask())
+        self.assertEqual(ex.answered([merge_ask()]), {merge_ask().item.ref: "hold"})
+        [held] = json.loads(self.firstmate("receipts"))["pending"]
+        self.assertEqual(held["request_id"], hold.request_id)
+        self.assertIn("This replaces my earlier YES on it (request `%s`)." % yes.request_id, held["body"])
 
 
 if __name__ == "__main__":

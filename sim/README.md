@@ -44,7 +44,9 @@ When items name projects, the knob on Home turns through the views: "all" first,
 - **List**: one row per item in the view, six at a time: color (tinted by project, as on the light bar), short id, kind and project, age, NEW.
 - **Detail**: the full text, only after a knob press on a row (D18).
 - **Confirm**: while a key is held, with the 1 s fill bar. Releasing early sends nothing but the key up.
-- **Result**: the bridge's answer: queued, replied, or failed.
+- **Result**: the bridge's answer: queued, replied, or failed. While queued, it reads **Seen** once firstmate has read the note, and beside it how long ago the note went (`sent 40s ago, firstmate has read it`); unread past the bridge's limit, the label turns amber and says `firstmate has not picked this up: sent 4m ago`.
+
+On the list, Home's column, and Detail, an item whose answer is still waiting on firstmate's reply says which (`YES sent`, `LATER sent`, `HOLD sent`) in that key's color.
 
 The light bar shows one light per unseen item in its kind's color, tinted by its project, and pulses while anything is new. A tint only mixes white into the kind's color (none without a project, else 18, 36, or 54 % by a stable hash of the name), so a tinted light is paler, never another kind's color. When calm it is the usage gauge (what is left of the tighter Claude window, out of 8 lights rounded up, over a dim track; no light lit while usage is unknown, so it never reads full), with the last light amber while a herdr agent is near its context limit; all amber when the link is unknown (no model for 10 s, or firstmate not listening), and sweeps green when `landed_today` goes up. One chime plays for each model that carries `chime`, unless muted.
 

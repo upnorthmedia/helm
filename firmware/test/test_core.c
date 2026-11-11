@@ -387,6 +387,8 @@ static void test_model_parse_full(void)
     CHECK(!m->usage.five_hour_left.known && !m->usage.week_left.known);
     CHECK(!m->context.top_used.known && !m->context.near_limit.known);
     CHECK(helm_model_str(m, m->context.top_agent) == NULL);
+    CHECK(!m->items[0].has_pending && !m->items[1].has_pending);
+    CHECK(!m->result.seen && !m->result.stalled && !m->result.waited_s.known);
 }
 
 static void test_model_parse_new_fields(void)
@@ -395,8 +397,10 @@ static void test_model_parse_new_fields(void)
         "{\"t\":\"model\",\"seq\":3,\"link\":{\"bridge_ok\":true,\"firstmate_can_receive\":true,\"posture\":\"away\","
         "\"stale_reason\":null,\"away\":true,\"mac_locked\":true},\"attention\":\"calm\",\"unseen\":0," COUNTS ",\"items\":["
         "{\"ref\":\"r\",\"kind\":\"decision\",\"color\":\"red\",\"short_id\":\"s\",\"age_s\":0,\"unseen\":false,"
-        "\"home\":\"h\",\"detail\":\"d\",\"actions\":[\"focus\"],\"pr_url\":null,\"checks\":null,\"project\":\"helm\"}],"
-        "\"result\":null,\"chime\":false,\"usage\":{\"five_hour_left\":0,\"five_hour_resets_s\":2147483647,"
+        "\"home\":\"h\",\"detail\":\"d\",\"actions\":[\"focus\"],\"pr_url\":null,\"checks\":null,\"project\":\"helm\","
+        "\"pending\":\"hold\"}],"
+        "\"result\":{\"request_id\":\"r\",\"state\":\"queued\",\"text\":\"t\",\"seen\":false,\"waited_s\":250,"
+        "\"stalled\":true},\"chime\":false,\"usage\":{\"five_hour_left\":0,\"five_hour_resets_s\":2147483647,"
         "\"week_left\":100,\"week_resets_s\":null,\"later\":[1]},"
         "\"context\":{\"top_used\":91,\"top_agent\":\"widget-cache\",\"near_limit\":2,\"later\":{}}}";
     CHECK_INT(parse_text(json), HELM_PARSE_OK);
@@ -409,6 +413,13 @@ static void test_model_parse_new_fields(void)
     CHECK(m->context.near_limit.known);
     CHECK_INT(m->context.near_limit.value, 2);
     CHECK_STR(helm_model_str(m, m->items[0].project), "helm");
+    CHECK(m->items[0].has_pending);
+    CHECK_INT(m->items[0].pending, HELM_ACTION_HOLD);
+    CHECK(m->has_result);
+    CHECK(!m->result.seen);
+    CHECK(m->result.stalled);
+    CHECK(m->result.waited_s.known);
+    CHECK_INT(m->result.waited_s.value, 250);
     CHECK(m->usage.five_hour_left.known);
     CHECK_INT(m->usage.five_hour_left.value, 0);
     CHECK_INT(m->usage.five_hour_resets_s.value, INT32_MAX);
@@ -650,11 +661,13 @@ typedef struct {
     bool has_result;
     helm_result_state_t result_state;
     const char *result_text;
+    bool result_seen;
+    int result_waited_s; /* -1: not sent */
     bool away; /* firstmate away: the bridge drops YES / LATER / HOLD, but keep them here to test the deck's own lock */
     bool mac_locked; /* the Mac is locked: the bridge drops every action, but keep them here too */
 } fx_opts_t;
 
-static const fx_opts_t FX = {false, 3, false, false, HELM_RESULT_QUEUED, NULL, false, false};
+static const fx_opts_t FX = {false, 3, false, false, HELM_RESULT_QUEUED, NULL, false, -1, false, false};
 
 static helm_model_t fx_model;
 static helm_usage_t fx_usage; /* usage for the next fixture models; all unknown by default */
@@ -711,6 +724,8 @@ static size_t fx_build(int64_t seq, const fx_item_t *const *items, int n, fx_opt
         m->result.request_id = helm_test_str(m, "r1");
         m->result.state = o.result_state;
         m->result.text = helm_test_str(m, o.result_text != NULL ? o.result_text : "");
+        m->result.seen = o.result_seen;
+        m->result.waited_s = (helm_opt_int_t){o.result_waited_s >= 0, o.result_waited_s >= 0 ? o.result_waited_s : 0};
     }
     size_t len = helm_test_model_json(m, fx_json, sizeof fx_json);
     return helm_frame_encode(HELM_FRAME_TYPE_JSON, fx_json, len, fx_frame, sizeof fx_frame);
@@ -995,11 +1010,20 @@ static void test_deck_result(void)
     CHECK(deck.pending_has_result);
     CHECK_INT(deck.pending_state, HELM_RESULT_QUEUED);
     CHECK_STR(deck.pending_text, "Queued");
+    CHECK(!deck.pending_seen && !deck.pending_stalled && !deck.pending_waited_s.known);
+    /* The queued note's progress follows each model: read by firstmate, and how long it has waited. */
+    queued.result_seen = true;
+    queued.result_waited_s = 40;
+    send_model(5, BUSY, 4, queued, T + 1700);
+    CHECK(deck.pending_seen);
+    CHECK(deck.pending_waited_s.known);
+    CHECK_INT(deck.pending_waited_s.value, 40);
+    CHECK_INT(deck.screen, HELM_SCREEN_RESULT); /* still queued: no linger */
     fx_opts_t replied = queued;
     replied.result_state = HELM_RESULT_REPLIED;
     replied.result_text = "done";
-    send_model(5, BUSY, 4, replied, T + 2000);
-    send_model(6, BUSY, 4, FX, T + 4000); /* a later model without a result keeps ours */
+    send_model(6, BUSY, 4, replied, T + 2000);
+    send_model(7, BUSY, 4, FX, T + 4000); /* a later model without a result keeps ours */
     CHECK_STR(deck.pending_text, "done");
     helm_deck_tick(&deck, T + 9999);
     CHECK_INT(deck.screen, HELM_SCREEN_RESULT);

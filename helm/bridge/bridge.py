@@ -36,6 +36,11 @@ RESEND_S = 2.0
 RESULT_LINGER_S = 120.0
 HOMES_REFRESH_S = 60.0
 RECOVERED_MAX = 5  # replies found at start beyond the one shown, kept to show next
+# A queued answer firstmate has not read after this long says "firstmate has not picked this up".
+# Firstmate drains its inbox when its current cycle ends, which can take minutes on a quiet fleet.
+STALL_AFTER_S = 180
+# fm-inbox.sh ready's age of the oldest unread note, in firstmate versions that publish it.
+READY_INBOX_AGE = "oldest_pending_note_age_seconds"
 # Firstmate postures (fm-inbox.sh ready). Away: the captain is gone, so the deck
 # mutes chimes and locks YES / LATER / HOLD; SHOW ME still works. Quiet: firstmate
 # treats a quiet captain as present and acts on their word at once, so the deck only
@@ -45,6 +50,27 @@ MUTED_POSTURES = {"away", "quiet"}
 ACTING_KEYS = {"yes", "later", "hold"}
 # `herdr agent list` exited 127: herdr is not installed (firstmate's default backend is tmux).
 HERDR_MISSING_RC = 127
+
+
+def note_stalled(seen: bool, sent_at: float, now: float, limit: float,
+                 ready: Optional[dict] = None, ready_at: Optional[float] = None) -> bool:
+    """True when firstmate has not read a note sent at `sent_at` within `limit` seconds.
+
+    Receipts' `acknowledged` decides seen. `ready`'s age of the oldest unread note, when a read taken
+    after the note was sent carries it, adds what receipts cannot: an empty inbox means the note was
+    read, and an older unread note means firstmate has stopped draining for that long already.
+    Without the field (an older firstmate) the note's own wait decides.
+    """
+    if seen:
+        return False
+    waited = now - sent_at
+    if ready is not None and ready_at is not None and ready_at >= sent_at and READY_INBOX_AGE in ready:
+        age = ready[READY_INBOX_AGE]
+        if age is None:
+            return False  # nothing unread after this note was sent: firstmate has it, receipts will say so
+        if isinstance(age, int) and not isinstance(age, bool):
+            waited = max(waited, max(0, age) + now - ready_at)
+    return waited >= limit
 
 
 class Every:
@@ -69,7 +95,8 @@ class HomeReaders:
 
 class Bridge:
     def __init__(self, transport: Transport, primary_home: Path, runner, executor: IntentExecutor, clock=time.time,
-                 usage: Optional[UsagePoller] = None, lock: Optional[LockWatch] = None):
+                 usage: Optional[UsagePoller] = None, lock: Optional[LockWatch] = None,
+                 stall_after_s: float = STALL_AFTER_S):
         self.transport = transport
         self.primary_home = primary_home
         self.runner = runner
@@ -81,7 +108,9 @@ class Bridge:
         self.ledger = LedgerState()
         self.readers: dict[str, HomeReaders] = {}
         self.ready: Optional[dict] = None
+        self.ready_at: Optional[float] = None
         self.ready_error: Optional[str] = "not checked yet"
+        self.stall_after_s = stall_after_s
         self.agents: list[dict] = []
         self.herdr_error: Optional[str] = None
         self.herdr_installed: Optional[bool] = None  # unknown until the first `herdr agent list`
@@ -139,6 +168,7 @@ class Bridge:
                                    env={"FM_HOME": str(self.primary_home)}, timeout=10)
             ready = parse_ready(done.stdout) if done.returncode == 0 else None
             self.ready, self.ready_error = ready, None if ready else "firstmate readiness unreadable"
+            self.ready_at = now if ready else None
             self._dirty = True
         if self._herdr_tick.due(now):
             done = self.runner.run(["herdr", "agent", "list"], timeout=5)
@@ -158,6 +188,7 @@ class Bridge:
         if self.executor.pending and self._receipts_tick.due(now):
             for result in self.executor.check_receipts():
                 self._set_result(result, now)
+                self._dirty = True  # a reply ends that item's pending answer
         if edges or self._dirty:
             self._rebuild(now, edges)
 
@@ -232,6 +263,9 @@ class Bridge:
         self.ledger.expire(now, epochs, keep=frozenset(problems))
         candidates, self.counts = build_candidates(snapshots, self.ledger, self.agents, now,
                                                    panes=self.herdr_installed is not False)
+        answered = self.executor.answered(c for c in candidates if not c.informational)
+        for cand in candidates:
+            cand.item.pending = answered.get(cand.item.ref)
         # A stuck firstmate task lights at once and chimes only if still stuck later:
         # from its ledger event's time when the fleet ledger reported it, else from now.
         deferred = {c.item.ref: getattr(self.ledger.provisional.get(c.item.ref), "ts", None)
@@ -264,12 +298,22 @@ class Bridge:
             unseen=self.attention.unseen_count,
             counts=self.counts,
             items=items,
-            result=self.result,
+            result=self._result_now(now),
             chime=False,
             usage=self.usage.usage(now),
             context=Context() if self.herdr_error or self.herdr_installed is False
             else context_gauge(self.agents, agent_title),
         )
+
+    def _result_now(self, now: float) -> Optional[Result]:
+        """The result to show, with a queued note's progress: read by firstmate, how long it has waited,
+        and whether firstmate has failed to pick it up."""
+        result = self.result
+        pend = self.executor.pending.get(result.request_id) if result and result.state == "queued" else None
+        if pend is None:
+            return result
+        stalled = note_stalled(pend.seen, pend.started, now, self.stall_after_s, self.ready, self.ready_at)
+        return replace(result, seen=pend.seen, waited_s=max(0, int(now - pend.started)), stalled=stalled)
 
     # Sending.
 
@@ -285,6 +329,8 @@ class Bridge:
             item.pop("age_s")
         for name in ("five_hour_resets_s", "week_resets_s"):
             body["usage"].pop(name)  # counts down every second, like age_s
+        if body["result"]:
+            body["result"].pop("waited_s")  # counts up every second
         changed = body != self._last_sent
         # Taken even while muted, so a muted chime does not ring on return.
         chime = self.attention.take_chime() and not self.muted()
@@ -374,6 +420,7 @@ class Bridge:
             self._set_result(Result("none", "failed", "PR changed, look again: %s" % cand.item.short_id), now)
             return
         self._set_result(self.executor.note(event.key, cand), now)
+        self._dirty = True  # the item now has an answer pending
 
     def _head_unchanged(self, ref: str, cand: Candidate) -> bool:
         """True when the item's PR head is the one the deck had when the hold began (or, with no

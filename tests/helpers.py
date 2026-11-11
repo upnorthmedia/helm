@@ -131,6 +131,7 @@ class FakeRunner:
         self.herdr_missing = False  # herdr not installed: the real Runner answers 127
         self.note_rc = 0
         self.note_outcome = "created"
+        self.note_id = "note-1"  # the id fm-inbox.sh gives the next note
         self.note_path = "/x"
         self.announce_rc = 0
         self.receipts: dict | None = {"schema": "fm-inbox-receipts.v1", "pending": [], "handled": [], "replies": []}
@@ -157,7 +158,7 @@ class FakeRunner:
             return Completed(0, json.dumps({"id": "cli:agent:list", "result": {"agents": self.agents}}), "")
         if sig == ("fm-inbox.sh", "note"):
             rid = argv[argv.index("--request-id") + 1]
-            out = {"schema": "fm-inbox-note.v1", "outcome": self.note_outcome, "id": "note-1", "request_id": rid,
+            out = {"schema": "fm-inbox-note.v1", "outcome": self.note_outcome, "id": self.note_id, "request_id": rid,
                    "saved": True, "announced": self.note_rc == 0, "acknowledged": False, "path": self.note_path}
             return Completed(self.note_rc, json.dumps(out), "" if self.note_rc == 0 else "wake failed")
         if sig == ("fm-inbox.sh", "announce"):

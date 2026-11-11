@@ -112,6 +112,9 @@ typedef struct {
     char pending_short_id[HELM_PENDING_SHORT_ID_BYTES];
     bool pending_has_result;
     helm_result_state_t pending_state;
+    bool pending_seen;               /* queued, and firstmate has read the note */
+    helm_opt_int_t pending_waited_s; /* queued: seconds since the note was sent */
+    bool pending_stalled;            /* queued and unread past the bridge's limit */
     char pending_text[HELM_PENDING_TEXT_BYTES];
     bool pending_final;
     uint32_t pending_final_ms;

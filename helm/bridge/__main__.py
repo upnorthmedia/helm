@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 
 from helm.contract import model_to_dict
-from helm.bridge.bridge import Bridge
+from helm.bridge.bridge import STALL_AFTER_S, Bridge
 from helm.bridge import doctor
 from helm.bridge.commands import Runner
 from helm.bridge.intents import IntentExecutor
@@ -38,6 +38,16 @@ def open_port_transport(port: str):
     return open_transport(port)
 
 
+def _positive_seconds(text: str) -> int:
+    try:
+        value = int(text)
+    except ValueError:
+        value = 0
+    if value <= 0:
+        raise argparse.ArgumentTypeError("expected a whole number of seconds above 0, got %r" % text)
+    return value
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(prog="python -m helm.bridge", description=__doc__.splitlines()[0])
     parser.add_argument("--port", help="serial device or pty path for the deck, or - for JSON lines on stdio")
@@ -48,6 +58,9 @@ def main(argv=None) -> int:
     parser.add_argument("--once", action="store_true", help="read everything once, print one Model as JSON, and exit")
     parser.add_argument("--doctor", action="store_true",
                         help="check what the firstmate home is missing for Helm, read only; exit 1 if a required piece is missing")
+    parser.add_argument("--stall-after", type=_positive_seconds, default=STALL_AFTER_S, metavar="SECONDS",
+                        help="say firstmate has not picked up a queued answer it has not read after this long "
+                             "(default: %d)" % STALL_AFTER_S)
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.set_defaults(live=False)
     args = parser.parse_args(argv)
@@ -75,7 +88,8 @@ def main(argv=None) -> int:
     if args.once:
         transport = MemoryTransport()
         # Read usage inline so the one Model printed includes it.
-        bridge = Bridge(transport, home, runner, executor, usage=UsagePoller(runner, background=False))
+        bridge = Bridge(transport, home, runner, executor, usage=UsagePoller(runner, background=False),
+                        stall_after_s=args.stall_after)
         bridge.tick(time.time())
         json.dump(model_to_dict(transport.sent[-1]), sys.stdout, indent=2)
         sys.stdout.write("\n")
@@ -83,7 +97,7 @@ def main(argv=None) -> int:
 
     if not args.port:
         parser.error("--port is required (or use --once)")
-    bridge = Bridge(open_port_transport(args.port), home, runner, executor)
+    bridge = Bridge(open_port_transport(args.port), home, runner, executor, stall_after_s=args.stall_after)
     try:
         bridge.run_forever()
     except KeyboardInterrupt:

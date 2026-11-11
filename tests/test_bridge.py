@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from helm.contract import Context, Hello, Key, Knob, Resync, Seen, Select, Usage
-from helm.bridge.bridge import Bridge
+from helm.bridge.bridge import READY_INBOX_AGE, STALL_AFTER_S, Bridge, note_stalled
 from helm.bridge.intents import IntentExecutor
 from helm.bridge.usage import UsagePoller
 from helm.bridge.transports import MemoryTransport
@@ -343,6 +343,69 @@ class BridgeTest(unittest.TestCase):
         self.advance(10)
         self.assertEqual(len(self.runner.calls_for("fm-inbox.sh", "receipts")), receipts_calls)  # nothing pending
 
+    def live_yes(self, ref="decision|primary|alpha-fix|merge-alpha-12"):
+        self.runner.allow_writes = True
+        self.executor.dry_run = False
+        self.bridge.tick(self.now)
+        self.bridge.handle(Key("yes", "held", ref), self.now)
+        return self.advance(0.1)
+
+    def item(self, model, ref):
+        [item] = [i for i in model.items if i.ref == ref]
+        return item
+
+    def test_a_queued_answer_shows_its_wait_then_seen_then_its_reply(self):
+        ref = "decision|primary|alpha-fix|merge-alpha-12"
+        model = self.live_yes(ref)
+        self.assertEqual((model.result.state, model.result.seen, model.result.waited_s, model.result.stalled),
+                         ("queued", False, 0, False))
+        self.assertEqual(self.item(model, ref).pending, "yes")
+        self.assertEqual({i.pending for i in model.items if i.ref != ref}, {None})
+
+        self.runner.receipts["pending"] = [{"id": "note-1", "acknowledged": False, "reply": None}]
+        self.assertEqual(self.advance(5).result.waited_s, 5)
+        self.runner.receipts.update(pending=[], handled=[{"id": "note-1", "acknowledged": True, "reply": None}])
+        model = self.advance(STALL_AFTER_S)
+        self.assertEqual((model.result.state, model.result.seen, model.result.stalled), ("queued", True, False))
+
+        self.runner.receipts["handled"][0]["reply"] = {"body": "Merged."}
+        model = self.advance(5)
+        self.assertEqual((model.result.state, model.result.text, model.result.waited_s), ("replied", "Merged.", None))
+        self.assertIsNone(self.item(model, ref).pending)
+
+    def test_a_note_firstmate_has_not_read_stalls_after_the_limit(self):
+        self.bridge.stall_after_s = 60
+        self.live_yes()
+        self.assertFalse(self.advance(59).result.stalled)
+        self.assertTrue(self.advance(1).result.stalled)
+        self.runner.receipts["handled"] = [{"id": "note-1", "acknowledged": True, "reply": None}]
+        self.assertFalse(self.advance(5).result.stalled)
+
+    def test_an_older_unread_note_in_ready_stalls_sooner(self):
+        self.live_yes()
+        # Firstmate has left another note unread for the whole limit: it is not draining.
+        self.runner.ready = dict(self.runner.ready, **{READY_INBOX_AGE: STALL_AFTER_S})
+        self.assertFalse(self.advance(5).result.stalled)  # ready is read every 15 s
+        model = self.advance(10)
+        self.assertTrue(model.result.stalled)
+        self.assertEqual(model.result.waited_s, 15)  # the note's own wait; the stall is firstmate's
+
+    def test_waiting_time_alone_does_not_resend_the_model(self):
+        self.live_yes()
+        self.advance(0.5)
+        self.assertIsNone(self.advance(0.6))  # waited_s moved, nothing else did
+        self.assertIsNotNone(self.advance(1))  # the 2 s resend carries it
+
+    def test_hold_after_yes_names_it_and_the_item_shows_hold_sent(self):
+        ref = "decision|primary|alpha-fix|merge-alpha-12"
+        yes = self.live_yes(ref).result
+        self.runner.note_id = "note-2"
+        self.bridge.handle(Key("hold", "held", ref), self.now)
+        model = self.advance(0.1)
+        self.assertEqual(self.item(model, ref).pending, "hold")
+        self.assertIn("This replaces my earlier YES on it (request `%s`)." % yes.request_id,
+                      self.runner.calls_for("fm-inbox.sh", "note")[-1][-1])
+
     def test_seen_event(self):
         self.bridge.tick(self.now)
         self.add_decision(self.primary, {"id": "nu", "key": "nu", "verb": "captain-hold", "hold_age_days": 0})
@@ -622,3 +685,30 @@ class BridgeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NoteStalledTest(unittest.TestCase):
+    """When a queued note counts as not picked up, with and without ready's oldest unread note age."""
+
+    def test_own_wait_decides_without_the_ready_field(self):
+        ready = {"schema": "fm-primary-ready.v1", "can_receive": True}
+        self.assertFalse(note_stalled(False, 100, 279, 180, ready, 200))
+        self.assertTrue(note_stalled(False, 100, 280, 180, ready, 200))
+        self.assertTrue(note_stalled(False, 100, 280, 180))
+        self.assertFalse(note_stalled(True, 100, 900, 180, ready, 200))  # seen never stalls
+
+    def test_an_empty_inbox_after_the_note_means_it_was_read(self):
+        self.assertFalse(note_stalled(False, 100, 900, 180, {READY_INBOX_AGE: None}, 150))
+        # A read from before the note was sent says nothing about it.
+        self.assertTrue(note_stalled(False, 100, 900, 180, {READY_INBOX_AGE: None}, 90))
+
+    def test_an_older_unread_note_counts_from_its_own_age(self):
+        # Read at 110 with a note unread for 150 s: firstmate has not drained since 260 s ago at 120.
+        self.assertFalse(note_stalled(False, 100, 115, 180, {READY_INBOX_AGE: 150}, 110))
+        self.assertTrue(note_stalled(False, 100, 140, 180, {READY_INBOX_AGE: 150}, 110))
+
+    def test_a_malformed_or_negative_age_is_handled(self):
+        for bad in ("200", True, 2.5, [1]):
+            self.assertFalse(note_stalled(False, 100, 110, 180, {READY_INBOX_AGE: bad}, 105))
+            self.assertTrue(note_stalled(False, 100, 280, 180, {READY_INBOX_AGE: bad}, 105))
+        self.assertFalse(note_stalled(False, 100, 110, 180, {READY_INBOX_AGE: -50}, 105))  # a clock step back

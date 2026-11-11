@@ -164,6 +164,23 @@ def age(seconds: int) -> str:
     return f"{seconds // 86400}d"
 
 
+def answer_tag(item: c.Item) -> str | None:
+    """"YES sent" while the item's answer waits on firstmate's reply."""
+    return f"{KEY_LABELS[item.pending]} sent" if item.pending else None
+
+
+def result_progress(result: c.Result) -> tuple[str, str] | None:
+    """A queued note's progress line and its color, or None when the bridge sent no wait time."""
+    if result.state != "queued" or result.waited_s is None:
+        return None
+    sent = f"sent {age(result.waited_s)} ago"
+    if result.seen:
+        return f"{sent}, firstmate has read it", "dim"
+    if result.stalled:
+        return f"firstmate has not picked this up: {sent}", "amber"
+    return f"{sent}, waiting for firstmate to read it", "dim"
+
+
 def project_tint(project: str | None) -> int:
     """0 for no project, else 1 + (32-bit FNV-1a of its UTF-8 bytes) % 3, as helm_lights_project_tint."""
     if not project:
@@ -315,7 +332,7 @@ def _chip(s: _Screen, x: float, y: float, color: str, size: int = 26) -> None:
 
 
 def _item_row(s: _Screen, item: c.Item, x0: float, x1: float, y: float, h: float, selected: bool, id_size: int) -> None:
-    """One item as a row: tinted strip, short id, kind and project, NEW, age."""
+    """One item as a row: tinted strip, short id, kind and project (and the answer sent), NEW, age."""
     small = id_size < 34
     badge_right = x1 - (110 if small else 130)
     # Text runs up to the NEW badge, or to the age when there is none.
@@ -324,7 +341,13 @@ def _item_row(s: _Screen, item: c.Item, x0: float, x1: float, y: float, h: float
     s.rect(x0, y, x0 + 14, y + h, item_light(item))
     s.text(x0 + 36, y + 10, clip(item.short_id, id_size, text_w), COLORS["text"], id_size, bold=True)
     kind = f"{KIND_LABELS[item.kind]}   {item.project}" if item.project else KIND_LABELS[item.kind]
-    s.text(x0 + 36, y + h - 30, clip(kind, 20, text_w), COLORS["dim"], 20)
+    kind_w = text_w
+    tag = answer_tag(item)
+    if tag:
+        # Right-aligned at the end of the text, in its key's color; the kind line gives way.
+        s.text(x0 + 36 + text_w, y + h - 30, tag, COLORS[KEY_COLORS[item.pending]], 20, bold=True, anchor="ne")
+        kind_w = text_w - len(tag) * 20 * CHAR_W - 20
+    s.text(x0 + 36, y + h - 30, clip(kind, 20, kind_w), COLORS["dim"], 20)
     s.text(x1 - 24, y + h / 2, age(item.age_s), COLORS["dim"], 24 if small else 28, anchor="e")
     if item.unseen:
         s.rect(badge_right - 80, y + h / 2 - 16, badge_right, y + h / 2 + 16, COLORS[item.color])
@@ -415,7 +438,12 @@ def _detail(s: _Screen, deck: Deck, now: float) -> None:
     meta = [f"home {item.home}"] + ([f"project {item.project}"] if item.project else []) + [f"age {age(item.age_s)}"]
     if item.checks:
         meta.append(f"checks {item.checks}")
-    s.text(40, 136, clip("   ".join(meta), 22, SCREEN_W - 80), COLORS["dim"], 22)
+    meta_w = SCREEN_W - 80
+    tag = answer_tag(item)
+    if tag:
+        s.text(SCREEN_W - 40, 136, tag, COLORS[KEY_COLORS[item.pending]], 22, bold=True, anchor="ne")
+        meta_w -= len(tag) * 22 * CHAR_W + 30
+    s.text(40, 136, clip("   ".join(meta), 22, meta_w), COLORS["dim"], 22)
     body_size, line_h, top, bottom = 26, 38, 186, 620
     lines = wrap(item.detail, body_size, SCREEN_W - 80)
     visible = (bottom - top) // line_h
@@ -462,9 +490,17 @@ def _result(s: _Screen, deck: Deck, now: float) -> None:
         text = "Waiting for the bridge to confirm." if waited < 10 else "The bridge has not answered. Nothing is known to have happened."
     else:
         label, color = {"queued": ("Queued", "blue"), "replied": ("Replied", "green"), "failed": ("Failed", "red")}[result.state]
+        if result.state == "queued" and result.seen:
+            label = "Seen"
+        elif result.state == "queued" and result.stalled:
+            color = "amber"
         text = result.text
     s.rect(40, 160, 300, 220, COLORS[color])
     s.text(170, 190, label, COLORS["screen"], 30, bold=True, anchor="center")
+    progress = result_progress(result) if result is not None else None
+    if progress is not None:
+        line, line_color = progress
+        s.text(330, 190, clip(line, 26, SCREEN_W - 370), COLORS[line_color], 26, anchor="w")
     for n, line in enumerate(wrap(text, 28, SCREEN_W - 80)[:9]):
         s.text(40, 260 + n * 42, line, COLORS["text"], 28)
     s.text(40, 690, "turn or press: home", COLORS["faint"], 20, anchor="w")
