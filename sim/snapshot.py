@@ -112,6 +112,26 @@ def screens() -> dict[str, tuple[Deck, float]]:
     locked = Deck()
     locked.on_model(fixtures.mac_locked(seq=7), t)
     out["home-locked"] = (locked, t + 0.3)
+
+    # Answers waiting on firstmate: the list says which item has one, the result how far it got.
+    deck = Deck()
+    deck.on_model(fixtures.answered(seq=8), t)
+    deck.knob(1, t)
+    out["list-answered"] = (deck, t)
+
+    deck = fresh()
+    deck.key_down("yes", t)
+    deck.tick(t + 1.0)
+    deck.on_model(fixtures.answered(seq=8), t + 2)
+    out["result-seen"] = (deck, t + 2)
+
+    deck = fresh()
+    deck.knob(1, t)
+    deck.knob(1, t)
+    deck.key_down("hold", t)
+    deck.tick(t + 1.0)
+    deck.on_model(fixtures.stalled(seq=9), t + 2)
+    out["result-stalled"] = (deck, t + 2)
     return out
 
 
