@@ -36,7 +36,7 @@ Needs Python 3.11+ with Tk (Homebrew's python 3.14 has Tk 9.0). No other package
 
 A key is lit only when its action applies to the selected item. Any control counts as a touch and marks new items seen.
 
-When items name projects, the knob on Home turns through the views: "all" first, then each project in order, and the status strip shows `view: <name>`. A press opens that view's list; turning up past the list's first row goes back to Home. Without projects, a turn on Home opens the list as before. While firstmate is away or quiet, the status strip says `firstmate away: keys locked`, YES, LATER, and HOLD stay dark, chimes are off, and SHOW ME still works. While the Mac is locked, it says `Mac locked: keys locked` and every key stays dark, SHOW ME too; chimes still play.
+When items name projects, the knob on Home turns through the views: "all" first, then each project in order, and the status strip shows `view: <name>`. A press opens that view's list; turning up past the list's first row goes back to Home. Without projects, a turn on Home opens the list as before. While firstmate is away, the status strip says `firstmate away: keys locked`, YES, LATER, and HOLD stay dark, chimes are off, and SHOW ME still works. In quiet mode the strip says `firstmate quiet` and every key works; the bridge sends no chime. While the Mac is locked, it says `Mac locked: keys locked` and every key stays dark, SHOW ME too; chimes still play.
 
 ## Screens
 

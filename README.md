@@ -116,19 +116,20 @@ The screen is a 1280 x 720 touch screen. These are screenshots from the simulato
     <td><img src="docs/sim/home-context.png" alt="Home screen with the context line in amber and the last light amber"><br><strong>Near the limit.</strong> An agent at 80 percent of its context turns the line and the last light amber.</td>
   </tr>
   <tr>
-    <td><img src="docs/sim/home-away.png" alt="Home screen with firstmate away: keys locked"><br><strong>Away.</strong> Firstmate away or quiet: YES, LATER, and HOLD lock, the chime stops, SHOW ME still works.</td>
+    <td><img src="docs/sim/home-away.png" alt="Home screen with firstmate away: keys locked"><br><strong>Away.</strong> Firstmate away: YES, LATER, and HOLD lock, the chime stops, SHOW ME still works.</td>
     <td><img src="docs/sim/home-locked.png" alt="Home screen with Mac locked: keys locked"><br><strong>Mac locked.</strong> Every key goes dark, checked again at the moment of a press.</td>
   </tr>
 </table>
 
 ## Features
 
-- **What needs you, not everything that is open.** The lights mean "new since you last looked". Everything already open when Helm starts counts as seen, and any touch of a key or the knob marks the rest seen. A new decision, a blocked or failed worker, a PR waiting on you, or a herdr agent waiting for approval lights the bar, rings the chime once, and goes to the top of the list.
+- **What needs you, not everything that is open.** The lights mean "new since you last looked". Everything already open when Helm starts counts as seen, and any touch of a key or the knob marks the rest seen. A new decision, a PR waiting on you, or a herdr agent you started waiting for approval lights the bar, rings the chime once, and goes to the top of the list. A stuck or failed firstmate worker lights the bar at once but chimes only if it is still stuck 10 minutes later, since firstmate handles it first; a waiting pane that belongs to a firstmate task does not ring on its own.
 - **One held key, one note.** YES, LATER, and HOLD each send firstmate one short note about the exact item on screen. Each note is keyed to the item, the answer, and the day, and to which ask it is: the PR's commit, or when the decision was raised. So pressing again is a replay, not a second note, while a new push or a decision raised again is a new ask. If firstmate has already read the note, the deck says "answered earlier" and shows the earlier reply. Firstmate's reply shows on the deck, even one that arrives while the bridge is restarting.
 - **Your word, behind firstmate's guards.** Firstmate treats a held YES as your word for exactly the one PR or decision it names, and nothing broader. It merges only through its own checks: the PR open, not a draft, mergeable, conflict free, and every check green at the exact current commit, read live at merge time. Helm itself cannot merge, push, or type into a pane.
 - **A short leash on the Mac.** The bridge runs a fixed allowlist of commands and refuses everything else before a process starts. It starts in dry run, logging notes and opens instead of sending them, until you start it with `--live`.
 - **Mac lock.** Lock your Mac and every key goes dark, SHOW ME too. The lock is read again right before acting on any press. The deck still lights up, so you see what waited for you.
-- **Away mode.** Put firstmate in away or quiet mode and the answer keys lock and the chime goes silent. SHOW ME still works and the lights still show new items.
+- **Away and quiet.** Put firstmate in away mode and the answer keys lock and the chime goes silent. In quiet mode only the chime goes silent: firstmate treats you as present, so YES, LATER, and HOLD still work. SHOW ME still works and the lights still show new items in both.
+- **Honest about firstmate's own state.** When firstmate marks its summary invalid, the deck never reads "All quiet". When the summary leaves rows out, the list says how many (`+5 more decisions`).
 - **Usage and context gauges.** Home shows what is left of your Claude 5 hour and weekly windows and when each resets, plus the herdr agent closest to its context limit. Unknown readings show as unknown, never as full.
 - **Every project, its own shade.** Turn the knob on Home to step through your projects. Each project gets a paler shade of the item's color on the lights and list, so red still reads as red and amber as amber.
 - **Every home, one deck.** Helm reads your primary firstmate home and every second mate home it lists, and labels each item with the home it came from.
@@ -171,7 +172,8 @@ The deck stays thin: it draws the model the bridge sends and reports key and kno
 ## What you need
 
 - A Mac. The bridge uses launchd to start at login and macOS's `ioreg` for the lock check.
-- firstmate running your crew, and herdr for the agent panes and SHOW ME's focus.
+- firstmate running your crew.
+- Optional: herdr, for SHOW ME's pane focus, the herdr line, and the context gauge. On a firstmate home that uses its default tmux backend everything else works, and SHOW ME opens the board, report, or PR without focusing a pane.
 - Optional: `quota-axi` for the Claude usage gauge (without it the gauge reads unknown), and `lavish-axi` for SHOW ME's review boards and reports.
 
 ## Build your own
@@ -253,7 +255,7 @@ A finished Helm is planned for sale, for anyone who would rather not build one.
 ## FAQ
 
 **Do I need firstmate?**
-Yes, for real use. Helm shows firstmate's decisions, workers, and PRs and sends your answers to firstmate's inbox; firstmate does the acting. herdr provides the agent panes SHOW ME brings forward and the context gauge. To look around first, the simulator runs with demo data and needs neither.
+Yes, for real use. Helm shows firstmate's decisions, workers, and PRs and sends your answers to firstmate's inbox; firstmate does the acting. herdr is optional: it provides the agent panes SHOW ME brings forward and the context gauge. To look around first, the simulator runs with demo data and needs neither.
 
 **Does it work without the hardware?**
 Yes. The [simulator](#try-the-simulator) looks and behaves like the deck and speaks the same wire, so the bridge cannot tell them apart. On the hardware side, the board alone works from touch, with no keys, knob, lights, or chime fitted.
