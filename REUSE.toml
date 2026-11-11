@@ -10,7 +10,7 @@ SPDX-License-Identifier = "Apache-2.0"
 
 # Documentation and images.
 [[annotations]]
-path = ["**/*.md", "docs/research/**", "docs/sim/**", "docs/images/**"]
+path = ["**/*.md", "docs/research/**", "docs/sim/**", "docs/images/**", "docs/media/**"]
 SPDX-FileCopyrightText = "2026 The Helm authors"
 SPDX-License-Identifier = "CC-BY-4.0"
 
