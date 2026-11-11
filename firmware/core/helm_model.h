@@ -12,7 +12,8 @@
  * Parsing validates like codec.decode_model: required fields, value types
  * (a bool is never an int), and enum values. Unknown keys are ignored, and the
  * fields added after the first release (link.away, link.mac_locked,
- * item.project, usage, context) are optional, so this parser and an older or newer bridge still agree. Integers
+ * item.project, item.pending, result.seen, result.waited_s, result.stalled,
+ * usage, context) are optional, so this parser and an older or newer bridge still agree. Integers
  * must fit their C field (int64 for seq, int32 elsewhere), which is narrower
  * than Python's unbounded int but far beyond anything the bridge sends.
  */
@@ -100,6 +101,9 @@ typedef struct {
     helm_color_t color;
     helm_checks_t checks;
     bool unseen;
+    /* The answer already sent for this item and still waiting on firstmate's reply. */
+    bool has_pending;
+    helm_action_t pending; /* YES, LATER, or HOLD, when has_pending */
 } helm_item_t;
 
 /* An integer that may be unknown (null or absent). */
@@ -127,6 +131,9 @@ typedef struct {
     helm_str_t request_id;
     helm_str_t text;
     helm_result_state_t state;
+    bool seen;               /* queued, and firstmate has read the note */
+    helm_opt_int_t waited_s; /* queued: seconds since the note was sent, 0 or more */
+    bool stalled;            /* queued and unread past the bridge's limit */
 } helm_result_t;
 
 typedef struct {

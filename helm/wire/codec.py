@@ -23,6 +23,7 @@ COLORS = get_args(c.Color)
 ACTIONS = get_args(c.Action)
 CHECKS = get_args(c.Checks)
 RESULT_STATES = get_args(c.ResultState)
+ANSWERS = get_args(c.Answer)
 KEY_PHASES = get_args(c.KeyPhase)
 
 
@@ -140,15 +141,22 @@ def _model_from(obj: dict[str, Any]) -> c.Model:
                 pr_url=_get(raw, "pr_url", str, optional=True),
                 checks=_enum(raw, "checks", CHECKS, optional=True),
                 project=_get(raw, "project", str, optional=True),
+                pending=_enum(raw, "pending", ANSWERS, optional=True),
             )
         )
     result = None
     if obj.get("result") is not None:
         raw = _obj(obj, "result")
+        waited = _get(raw, "waited_s", int, optional=True)
+        if waited is not None and waited < 0:
+            raise DecodeError(f"'waited_s' is {waited}, outside 0 to any")
         result = c.Result(
             request_id=_get(raw, "request_id", str),
             state=_enum(raw, "state", RESULT_STATES),
             text=_get(raw, "text", str),
+            seen=bool(_get(raw, "seen", bool, optional=True)),
+            waited_s=waited,
+            stalled=bool(_get(raw, "stalled", bool, optional=True)),
         )
     return c.Model(
         seq=_get(obj, "seq", int),

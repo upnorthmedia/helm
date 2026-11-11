@@ -106,6 +106,20 @@ def random_item(rng: random.Random) -> c.Item:
         pr_url=rng.choice([None, "https://github.com/o/r/pull/%d" % rng.randint(1, 9999), random_text(rng, 20)]),
         checks=rng.choice([None, *codec.CHECKS]),
         project=rng.choice([None, "helm", random_text(rng, 32)]),
+        pending=rng.choice([None, *codec.ANSWERS]),
+    )
+
+
+def random_result(rng: random.Random) -> c.Result | None:
+    if rng.random() < 0.4:
+        return None
+    return c.Result(
+        request_id=random_text(rng, 20),
+        state=rng.choice(codec.RESULT_STATES),
+        text=random_text(rng, 80),
+        seen=rng.random() < 0.5,
+        waited_s=rng.choice([None, 0, 59, 2**31 - 1, rng.randint(0, 10**5)]),
+        stalled=rng.random() < 0.5,
     )
 
 
@@ -147,9 +161,7 @@ def random_model(rng: random.Random, seq: int) -> c.Model:
         unseen=sum(1 for i in items if i.unseen),
         counts=c.Counts(**{name: rng.randint(0, 50) for name in c.Counts.__dataclass_fields__}),
         items=items,
-        result=rng.choice(
-            [None, c.Result(request_id=random_text(rng, 20), state=rng.choice(codec.RESULT_STATES), text=random_text(rng, 80))]
-        ),
+        result=random_result(rng),
         chime=rng.random() < 0.3,
         usage=random_usage(rng),
         context=random_context(rng),
@@ -176,7 +188,8 @@ def outside_c_range(model: c.Model) -> bool:
     """
     small = [model.unseen, *asdict(model.counts).values(), *(item.age_s for item in model.items),
              *(v for v in asdict(model.usage).values() if v is not None),
-             *(v for v in (model.context.top_used, model.context.near_limit) if v is not None)]
+             *(v for v in (model.context.top_used, model.context.near_limit) if v is not None),
+             *([model.result.waited_s] if model.result and model.result.waited_s is not None else [])]
     return model.seq not in INT64 or any(v not in INT32 for v in small)
 
 
@@ -241,7 +254,8 @@ class FirmwareCoreCrossTest(unittest.TestCase):
         result_failed = fixtures.busy(seq=8)
         result_failed.result = c.Result(request_id="r", state="failed", text="YES does not apply to pane-7")
         self._round_trip([fixtures.calm(), fixtures.busy(), fixtures.stale(), fixtures.projects(), fixtures.away(),
-                          fixtures.calm_near_limit(), fixtures.mac_locked(), result_queued, result_failed])
+                          fixtures.calm_near_limit(), fixtures.mac_locked(), result_queued, result_failed,
+                          fixtures.answered(), fixtures.stalled()])
 
     def test_random_models_round_trip(self):
         rng = random.Random(5)
@@ -296,11 +310,14 @@ class FirmwareCoreCrossTest(unittest.TestCase):
             variant(lambda o, k=key: o["items"][0].pop(k))
             for bad in (None, True, 0, -3, 2**31, "x", "red", "yes", [], ["yes"], ["nope"], [None], {}):
                 variant(lambda o, k=key, v=bad: o["items"][0].__setitem__(k, v))
-        result = {"request_id": "r", "state": "replied", "text": "ok"}
+        result = {"request_id": "r", "state": "queued", "text": "ok", "seen": True, "waited_s": 200, "stalled": False}
         variant(lambda o: o.__setitem__("result", dict(result)))
         for key in result:
             variant(lambda o, k=key: o.__setitem__("result", {kk: vv for kk, vv in result.items() if kk != k}))
-            variant(lambda o, k=key: o.__setitem__("result", {**result, k: 3}))
+            for bad in (None, True, 3, -1, 2**31, "x", "seen", []):
+                variant(lambda o, k=key, v=bad: o.__setitem__("result", {**result, k: v}))
+        # An older bridge's result, with none of the fields added since.
+        variant(lambda o: o.__setitem__("result", {"request_id": "r", "state": "replied", "text": "ok"}))
         variant(lambda o: o.__setitem__("future", {"deep": [1, 2.5, None, {"x": "y"}]}))
         variant(lambda o: o["items"].append(7))
         variant(lambda o: o["items"][0].__setitem__("future", [True]))

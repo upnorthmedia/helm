@@ -163,6 +163,25 @@ def away(seq: int = 4) -> c.Model:
     return with_projects(model(seq, items, link=LINK_AWAY, usage=c.Usage(five_hour_left=8, five_hour_resets_s=2400, week_left=None)))
 
 
+def answered(seq: int = 8) -> c.Model:
+    """YES held on the widget-api decision 40 s ago: firstmate has read it and not replied yet."""
+    m = model(seq, [DECISION, PR_READY, WORKER_PROBLEM, HERDR_BLOCKED])
+    m.items[0].pending = "yes"
+    m.items[1].pending = "hold"
+    m.result = c.Result(request_id="helm-yes-fixture", state="queued", text="queued YES on widget-api",
+                        seen=True, waited_s=40)
+    return m
+
+
+def stalled(seq: int = 9) -> c.Model:
+    """HOLD held on gizmo#42 four minutes ago, and firstmate has not read it."""
+    m = model(seq, [DECISION, PR_READY, WORKER_PROBLEM, HERDR_BLOCKED])
+    m.items[1].pending = "hold"
+    m.result = c.Result(request_id="helm-hold-fixture", state="queued", text="queued HOLD on gizmo#42",
+                        waited_s=250, stalled=True)
+    return m
+
+
 def mac_locked(seq: int = 7) -> c.Model:
     """The Mac is locked: the bridge has dropped every action, SHOW ME included."""
     items = copy.deepcopy([DECISION, PR_READY, WORKER_PROBLEM, HERDR_BLOCKED])

@@ -5,9 +5,13 @@ changes. The device sends Events back. Neither side depends on how the other
 moves bytes: that is the Transport's job.
 
 Fields added after the first release (Link.away, Link.mac_locked,
-Item.project, Model.usage, Model.context, Key.ref) have defaults, and both decoders (helm/wire/codec.py and firmware/core) treat
-them as optional, so a newer bridge and an older device, or the reverse, still
-work together: each side skips JSON keys it does not know.
+Item.project, Item.pending, Result.seen, Result.waited_s, Result.stalled,
+Model.usage, Model.context, Key.ref) have defaults, and both decoders
+(helm/wire/codec.py and firmware/core) treat them as optional, so a newer
+bridge and an older device, or the reverse, still work together: each side
+skips JSON keys it does not know. No enum gains a value for the same reason:
+both decoders refuse a model with an enum value they do not know, so "firstmate
+has read the note" is Result.seen beside state "queued", not a new state.
 
 One exception is deliberate. Key.ref names the item the deck showed, and the
 bridge acts only on that ref, never on the last `select` it received (a lost
@@ -27,6 +31,7 @@ Color = Literal["red", "amber", "blue", "green"]
 Action = Literal["yes", "later", "hold", "focus"]
 Checks = Literal["green", "red", "pending", "unknown"]
 ResultState = Literal["queued", "replied", "failed"]
+Answer = Literal["yes", "later", "hold"]  # the held keys that send a firstmate note
 KeyName = Literal["yes", "later", "hold", "focus"]
 KeyPhase = Literal["down", "up", "held"]
 
@@ -77,6 +82,9 @@ class Item:
     pr_url: Optional[str] = None
     checks: Optional[Checks] = None
     project: Optional[str] = None  # repo name when known; the knob can filter the list by it
+    # The answer already sent for this item and still waiting on firstmate's reply (the latest,
+    # when there are two), so the deck can say "YES sent". None once firstmate replies.
+    pending: Optional[Answer] = None
 
 
 @dataclass
@@ -110,6 +118,12 @@ class Result:
     request_id: str
     state: ResultState
     text: str
+    # While queued: firstmate has read the note (receipts' `acknowledged`) but not replied yet.
+    seen: bool = False
+    # While queued: seconds since the note was sent, or None when not known (a dry run).
+    waited_s: Optional[int] = None
+    # While queued and not seen: firstmate has not picked the note up within the bridge's limit.
+    stalled: bool = False
 
 
 @dataclass

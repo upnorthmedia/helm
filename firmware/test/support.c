@@ -127,6 +127,12 @@ size_t helm_test_model_json(const helm_model_t *m, uint8_t *out, size_t cap)
         }
         helm_jsonw_raw(&w, ",\"project\":");
         put_str_or_null(&w, m, it->project);
+        helm_jsonw_raw(&w, ",\"pending\":");
+        if (it->has_pending) {
+            helm_jsonw_string(&w, helm_action_name(it->pending));
+        } else {
+            helm_jsonw_raw(&w, "null");
+        }
         helm_jsonw_raw(&w, "}");
     }
     helm_jsonw_raw(&w, "],\"result\":");
@@ -137,6 +143,12 @@ size_t helm_test_model_json(const helm_model_t *m, uint8_t *out, size_t cap)
         helm_jsonw_string(&w, helm_result_state_name(m->result.state));
         helm_jsonw_raw(&w, ",\"text\":");
         helm_jsonw_string(&w, helm_model_str(m, m->result.text));
+        helm_jsonw_raw(&w, ",\"seen\":");
+        helm_jsonw_bool(&w, m->result.seen);
+        helm_jsonw_raw(&w, ",\"waited_s\":");
+        put_opt_int(&w, m->result.waited_s);
+        helm_jsonw_raw(&w, ",\"stalled\":");
+        helm_jsonw_bool(&w, m->result.stalled);
         helm_jsonw_raw(&w, "}");
     } else {
         helm_jsonw_raw(&w, "null");

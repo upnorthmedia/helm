@@ -34,6 +34,7 @@ static const char *const COLOR_NAMES[] = {"red", "amber", "blue", "green"};
 static const char *const ACTION_NAMES[] = {"yes", "later", "hold", "focus"};
 static const char *const CHECKS_NAMES[] = {"green", "red", "pending", "unknown"}; /* from HELM_CHECKS_GREEN */
 static const char *const RESULT_NAMES[] = {"queued", "replied", "failed"};
+static const char *const ANSWER_NAMES[] = {"yes", "later", "hold"}; /* from HELM_ACTION_YES */
 
 #define COUNT_OF(a) (sizeof(a) / sizeof((a)[0]))
 
@@ -771,6 +772,11 @@ static helm_parse_status_t parse_item(reader_t *r, helm_item_t *item)
             present = false;
             TRY(field_enum(r, CHECKS_NAMES, COUNT_OF(CHECKS_NAMES), &e, &present));
             item->checks = present ? (helm_checks_t)(HELM_CHECKS_GREEN + e) : HELM_CHECKS_NONE;
+        } else if (strcmp(key, "pending") == 0) {
+            present = false;
+            TRY(field_enum(r, ANSWER_NAMES, COUNT_OF(ANSWER_NAMES), &e, &present));
+            item->has_pending = present;
+            item->pending = present ? (helm_action_t)(HELM_ACTION_YES + e) : HELM_ACTION_YES;
         } else {
             TRY(skip_value(r));
         }
@@ -807,6 +813,10 @@ static helm_parse_status_t parse_result(reader_t *r, helm_result_t *res)
     bool first = true, more, present = false;
     unsigned seen = 0;
     char key[KEY_BYTES];
+    res->seen = false;
+    res->waited_s.known = false;
+    res->waited_s.value = 0;
+    res->stalled = false;
     for (;;) {
         TRY(next_key(r, &first, key, sizeof key, &more));
         if (!more) {
@@ -823,6 +833,20 @@ static helm_parse_status_t parse_result(reader_t *r, helm_result_t *res)
         } else if (strcmp(key, "text") == 0) {
             TRY(field_str(r, &res->text, &present));
             seen = SEEN(seen, R_TEXT, present);
+        } else if (strcmp(key, "seen") == 0) {
+            bool v = false;
+            TRY(field_bool(r, &v, &present));
+            res->seen = present && v; /* null is false, as codec reads it */
+        } else if (strcmp(key, "stalled") == 0) {
+            bool v = false;
+            TRY(field_bool(r, &v, &present));
+            res->stalled = present && v;
+        } else if (strcmp(key, "waited_s") == 0) {
+            int64_t v = 0;
+            present = false;
+            TRY(field_int(r, 0, INT32_MAX, &v, &present));
+            res->waited_s.known = present;
+            res->waited_s.value = present ? (int32_t)v : 0;
         } else {
             TRY(skip_value(r));
         }
