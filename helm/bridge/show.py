@@ -11,7 +11,8 @@ Resolution reads only, and the first match wins:
    Markdown is rendered to a page in the helm cache first, never under a
    firstmate home.
 3. The item's PR on GitHub.
-Otherwise SHOW ME only focuses the pane, as before.
+Otherwise SHOW ME only focuses the pane. The key is lit when the item has a pane or
+something here to open (has_something_to_open, a cheap check run on every rebuild).
 """
 
 from __future__ import annotations
@@ -22,12 +23,14 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from urllib.parse import urlsplit
 
 from helm.bridge.commands import LAVISH_LIST, openable_url
-from helm.bridge.items import Candidate
 from helm.bridge.sources import safe_task_id, status_tail
+
+if TYPE_CHECKING:
+    from helm.bridge.items import Candidate
 
 LAVISH_LIST_ARGV = list(LAVISH_LIST)
 LAVISH_OPEN_FLAGS = ["--reopen", "--no-gate"]  # a tap is an explicit ask, so reopen an ended board, and at once
@@ -123,16 +126,42 @@ def item_texts(cand: Candidate) -> list[str]:
 
 def named_report(cand: Candidate, texts: list[str]) -> Optional[Path]:
     """The first data/... .md or .html path the item names that is a file in its own home's data/."""
-    if cand.home_path is None:
+    return _named_report(cand.home_path, texts)
+
+
+def _named_report(home_path: Optional[Path], texts: list[str]) -> Optional[Path]:
+    if home_path is None:
         return None
-    data = cand.home_path / "data"
+    data = home_path / "data"
     for text in texts:
         for match in _TEXT_REPORT.finditer(text):
             raw = match.group(1)
-            path = Path(raw) if raw.startswith("/") else cand.home_path / raw
+            path = Path(raw) if raw.startswith("/") else home_path / raw
             if _in_data(path, data):
                 return _resolved(path)
     return None
+
+
+def _default_report(home_path: Optional[Path], task: str) -> Optional[Path]:
+    """The task's data/<task>/report.md in its own home, if it is a file there."""
+    if home_path is None or not safe_task_id(task):
+        return None
+    default = home_path / "data" / task / "report.md"
+    return _resolved(default) if _in_data(default, home_path / "data") else None
+
+
+def has_something_to_open(home_path: Optional[Path], task: str, detail: str, pr_url: Optional[str]) -> bool:
+    """Whether SHOW ME has a board, report, or PR to open, cheaply enough to ask on every item rebuild.
+
+    Reads only the item's own detail and stats its report paths: it never lists Lavish
+    sessions or reads status lines, so a board found only through those still opens on a
+    tap but does not light the key by itself.
+    """
+    if pr_url and openable_url(pr_url):
+        return True
+    if _TEXT_BOARD.search(detail or ""):
+        return True
+    return _named_report(home_path, [detail or ""]) is not None or _default_report(home_path, task) is not None
 
 
 def _newest(sessions: list[LavishSession]) -> Optional[LavishSession]:
@@ -176,10 +205,7 @@ def find_target(cand: Candidate, sessions: Optional[list[LavishSession]], cache_
     board = find_board(cand, sessions or [], texts, named)
     if board is not None:
         return ShowTarget("board", ("open", board.url))
-    report = named
-    if report is None and cand.home_path is not None and safe_task_id(cand.task):
-        default = cand.home_path / "data" / cand.task / "report.md"
-        report = _resolved(default) if _in_data(default, cand.home_path / "data") else None
+    report = named or _default_report(cand.home_path, cand.task)
     if report is not None and report.suffix == ".html":
         return ShowTarget("report", ("lavish-axi", str(report), *LAVISH_OPEN_FLAGS))
     if report is not None:
