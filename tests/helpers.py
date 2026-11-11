@@ -140,7 +140,13 @@ class FakeRunner:
         if sig == ("fm-inbox.sh", "announce"):
             return Completed(self.announce_rc, "{}", "")
         if sig == ("fm-inbox.sh", "receipts"):
-            return Completed(0, json.dumps(self.receipts), "") if self.receipts is not None else Completed(1, "", "boom")
+            if self.receipts is None:
+                return Completed(1, "", "boom")
+            out = dict(self.receipts)
+            if "--after" in argv:  # like fm-inbox.sh: only replies past the cursor
+                after = argv[argv.index("--after") + 1]
+                out["replies"] = [r for r in out.get("replies") or [] if r.get("cursor", "") > after]
+            return Completed(0, json.dumps(out), "")
         if sig == ("herdr", "agent", "focus"):
             return Completed(0, "", "")
         if sig == ("quota-axi", "--provider", "claude", "--json"):

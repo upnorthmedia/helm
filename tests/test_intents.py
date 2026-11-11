@@ -150,6 +150,18 @@ class RequestIdTest(unittest.TestCase):
         self.assertEqual(len(rid), 128)
         self.assertRegex(rid, r"-%s-\d{8}$" % HEAD[:12])
 
+    def test_shortened_ids_keep_items_that_differ_only_in_key_apart(self):
+        def decision(key):
+            item = Item("decision|primary|t|%s" % key, "decision", "red", "t", 0, False, "primary", "Same question?",
+                        ["yes"], None, None)
+            return Candidate(item, "t" * 120, key, None, None)
+
+        one, two = request_id("yes", decision("key-one"), NOW), request_id("yes", decision("key-two"), NOW)
+        self.assertNotEqual(one, two)
+        self.assertEqual((len(one), len(two)), (128, 128))
+        self.assertRegex(one, r"^helm-yes-primary-ttt+-h[0-9a-f]{8}-q[0-9a-f]{8}-\d{8}$")
+        self.assertNotRegex(request_id("yes", plain_decision(), NOW), r"-h[0-9a-f]{8}-")  # short ids keep no digest
+
 
 class ExecutorTest(unittest.TestCase):
     def setUp(self):

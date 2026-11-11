@@ -147,6 +147,55 @@ class BridgeTest(unittest.TestCase):
         self.assertNotEqual(first.request_id, second.request_id)
         self.assertIn("at commit `%s`" % heads[1], self.executor.dry_log[-1])
 
+    def test_yes_refuses_when_the_pr_head_changed_during_the_hold(self):
+        url = "https://github.com/example/delta/pull/3"
+        ref = "pr|primary|" + url
+        heads = ("fe05bcdcdc4928012781a5f1a2a77cbb5398e106", "ad782ecdac770fc6eb9a62e44f90873fb97fb26b")
+        self.set_head(url, heads[0])
+        self.bridge.tick(self.now)
+        self.bridge.handle(Key("yes", "down", ref), self.now)
+        self.set_head(url, heads[1])  # the summary refreshes while the key is held
+        self.advance(2.5)
+        self.bridge.handle(Key("yes", "held", ref), self.now)
+        result = self.advance(0.1).result
+        self.assertEqual((result.state, result.text), ("failed", "PR changed, look again: delta#3"))
+        self.assertEqual(self.executor.dry_log, [])
+
+        # A fresh hold on what the deck now shows goes through, pinned to that commit.
+        self.bridge.handle(Key("yes", "down", ref), self.now)
+        self.bridge.handle(Key("yes", "held", ref), self.now)
+        self.assertEqual(self.advance(0.1).result.state, "queued")
+        self.assertIn("at commit `%s`" % heads[1], self.executor.dry_log[-1])
+
+    def test_yes_with_no_down_is_bound_to_the_head_last_sent_to_the_deck(self):
+        url = "https://github.com/example/delta/pull/3"
+        ref = "pr|primary|" + url
+        self.set_head(url, "fe05bcdcdc4928012781a5f1a2a77cbb5398e106")
+        self.bridge.tick(self.now)
+        self.set_head(url, "ad782ecdac770fc6eb9a62e44f90873fb97fb26b")
+        self.now += 2.5
+        self.bridge.poll_sources(self.now)  # the bridge reads the new head but has not sent a model since
+        self.bridge.handle(Key("yes", "held", ref), self.now)
+        self.assertEqual(self.bridge.result.text, "PR changed, look again: delta#3")
+        self.assertEqual(self.executor.dry_log, [])
+
+    def test_start_keeps_every_recovered_reply_newest_first(self):
+        self.runner.allow_writes = True
+        self.executor.dry_run = False
+        self.cache.mkdir()
+        (self.cache / "inbox-reply-cursor.json").write_text(json.dumps({"home": str(self.primary), "cursor": "000000000003"}))
+        stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(self.now - 30))
+        replies = [{"id": "n%d" % i, "body": "reply %d" % i, "cursor": "%012d" % (3 + i)} for i in (1, 2, 3)]
+        self.runner.receipts.update(
+            handled=[{"id": r["id"], "at": stamp, "request_id": "helm-yes-primary-t%s-k-20261111" % r["id"], "reply": r}
+                     for r in replies],
+            replies=replies, reply_cursor="000000000006")
+        self.bridge.start()
+        shown = [self.bridge.tick(self.now).result]
+        for _ in range(3):
+            shown.append(self.advance(121).result)  # each reply lingers 120 s, then the next one shows
+        self.assertEqual([r.text if r else None for r in shown], ["reply 3", "reply 2", "reply 1", None])
+
     def test_start_takes_back_notes_and_shows_a_reply_from_while_it_was_down(self):
         self.runner.allow_writes = True
         self.executor.dry_run = False

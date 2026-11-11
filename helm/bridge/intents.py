@@ -87,9 +87,15 @@ def request_id(intent: str, cand: Candidate, now: float) -> str:
     day = time.strftime("%Y%m%d", time.localtime(now))
     instance = item_instance(cand)
     tail = _REQUEST_ID_UNSAFE.sub("_", "%s-%s" % (instance, day) if instance else day)
-    head = _REQUEST_ID_UNSAFE.sub("_", "-".join(["helm", intent, cand.item.home, cand.task or "x", cand.note_key or "x"]))
-    # Long task or key names give way first, so the instance and day always survive.
-    return "%s-%s" % (head[: REQUEST_ID_MAX - len(tail) - 1], tail)
+    identity = "-".join(["helm", intent, cand.item.home, cand.task or "x", cand.note_key or "x"])
+    head = _REQUEST_ID_UNSAFE.sub("_", identity)
+    room = REQUEST_ID_MAX - len(tail) - 1
+    if len(head) > room:
+        # Long task or key names give way first, so the instance and day always survive. A digest of
+        # the whole identity keeps two items apart when only the cut part (often the key) differs.
+        digest = "h" + hashlib.sha256(identity.encode("utf-8")).hexdigest()[:8]
+        head = "%s-%s" % (head[: room - len(digest) - 1], digest)
+    return "%s-%s" % (head, tail)
 
 
 def _subject(cand: Candidate) -> str:
