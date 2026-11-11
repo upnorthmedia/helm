@@ -17,12 +17,15 @@ Helm is a desk control deck for <a href="#what-you-need">firstmate and herdr</a>
   <a href="#project-status">Status</a>
 </p>
 
-> **Status:** designed, simulated, and the firmware builds in CI. It has not yet run on a real board, and the product images are renders. Details under [Project status](#project-status).
+> **Status:** designed, simulated, and the firmware builds in CI. It has not yet run on a real board, and the product images and video are renders. Details under [Project status](#project-status).
 
-<!--
-VIDEO: the teaser video goes here once its render passes review.
-Plan: a poster image (docs/images/) that links to the video file, plus an inline <video> if GitHub renders it.
--->
+<p align="center">
+  <a href="docs/media/helm-teaser.mp4"><img src="docs/images/teaser-poster.jpg" alt="Play the 35 second Helm teaser video" width="880"></a>
+  <br>
+  <sub>The 35 second teaser (with sound). Click to play.</sub>
+</p>
+
+<video src="docs/media/helm-teaser.mp4" poster="docs/images/teaser-poster.jpg" controls width="880"></video>
 
 ## Why Helm
 
@@ -35,7 +38,7 @@ It is not another dashboard. It shows what is new since you last touched it, so 
 ## The controls
 
 <p align="center">
-  <img src="docs/images/studio.jpg" alt="Render of Helm on a dark background showing All quiet, with the YES, LATER, HOLD, and SHOW ME keys, the light bar, and the knob" width="880">
+  <img src="docs/images/keys-knob.jpg" alt="Close-up render of the four keys (green check, blue clock, amber pause, white ring), the light bar, and the knob" width="880">
 </p>
 
 | Control | Action | What it does |
@@ -49,6 +52,13 @@ It is not another dashboard. It shows what is new since you last touched it, so 
 | | press and hold | Mute the chime. The knob glows red while muted; hold again to unmute. |
 
 A key is lit only when its action applies to the selected item. While you hold an answer key, the screen shows the exact item and action with a one second fill bar; let go early and nothing is sent.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/confirm.jpg" alt="Render: Hold to confirm YES on gizmo#42, with the fill bar half full"><br><strong>Hold YES.</strong> The exact item and action, and a one second fill bar.</td>
+    <td width="50%"><img src="docs/images/reply.jpg" alt="Render: YES on gizmo#42, Replied, with firstmate's reply that it merged the PR"><br><strong>Firstmate replies.</strong> Its answer shows on the deck, and the light bar sweeps green when the PR lands.</td>
+  </tr>
+</table>
 
 **The light bar (8 lights)**
 
@@ -105,8 +115,8 @@ The screen is a 1280 x 720 touch screen. These are screenshots from the simulato
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/logo-macro.jpg" alt="Macro render of the engraved helm wheel logo on the black aluminum face"></td>
-    <td width="50%"><img src="docs/images/knob-macro.jpg" alt="Macro render of the black knob beside the light bar and the SHOW ME key"></td>
+    <td width="50%"><img src="docs/images/logo.jpg" alt="Macro render of the engraved helm wheel logo on the black aluminum face"></td>
+    <td width="50%"><img src="docs/images/top.jpg" alt="Render of Helm from the front: the screen, the four keys, the light bar, and the knob, with the USB-C cable leaving the back"></td>
   </tr>
 </table>
 
