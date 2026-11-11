@@ -8,6 +8,13 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request cancels that pull request's older run. Runs on
+# main are grouped by commit, so each one finishes and shows which commit broke.
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Actions are pinned by commit; the comment names the release.
 jobs:
   unittest:
     runs-on: ubuntu-latest
@@ -16,8 +23,10 @@ jobs:
       matrix:
         python-version: ["3.11", "3.x"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.python-version }}
       # The simulator's Tk tests run for real under a virtual display (xvfb)
@@ -31,6 +40,117 @@ jobs:
       - name: Tests
         run: xvfb-run -a python3 -m unittest discover -s tests -t . -v
 
+  # The bridge and scripts/ target macOS, whose stock bash is 3.2. Put /bin
+  # first so every script, and every test that runs one, gets that bash.
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.x"
+      - name: Stock bash
+        shell: /bin/bash -eu {0}
+        run: |
+          echo "/bin" >> "$GITHUB_PATH"
+          case "$BASH_VERSION" in
+            3.2.*) ;;
+            *) echo "::error::expected stock macOS bash 3.2, got $BASH_VERSION"; exit 1 ;;
+          esac
+          for f in scripts/*.sh; do
+            /bin/bash -n "$f" || { echo "::error file=$f::stock bash 3.2 cannot parse $f"; exit 1; }
+          done
+      - name: Firmware core
+        shell: /bin/bash -eu {0}
+        run: |
+          [ "$(command -v bash)" = /bin/bash ] || { echo "::error::bash on PATH is $(command -v bash)"; exit 1; }
+          scripts/test-firmware.sh
+      - name: Tests
+        shell: /bin/bash -eu {0}
+        run: python3 -m unittest discover -s tests -t . -v
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      # CI-only tools, pinned. The bridge itself stays standard library only.
+      - name: Install lint tools
+        run: |
+          python3 -m venv "$RUNNER_TEMP/lint"
+          "$RUNNER_TEMP/lint/bin/pip" install --quiet \
+            ruff==0.14.5 reuse==5.0.2 shellcheck-py==0.11.0.1 actionlint-py==1.7.12.25
+          echo "$RUNNER_TEMP/lint/bin" >> "$GITHUB_PATH"
+      - name: ruff
+        run: ruff check --output-format github .
+      - name: shellcheck
+        run: git ls-files -z '*.sh' | xargs -0 shellcheck
+      # actionlint also runs the pinned shellcheck over each run: block.
+      - name: actionlint
+        run: actionlint
+      - name: reuse lint
+        run: reuse lint
+      - name: Public repository hygiene
+        run: scripts/check-hygiene.sh
+
+  # The case tests and build need CadQuery (about 1.3 GB), so they run only
+  # when case/ or this workflow changed. The job itself always runs, so it can
+  # be a required check. The build must reproduce the committed out/checks.txt.
+  case:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Did case/ change?
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # A pull request's checkout is its merge commit, whose first parent
+          # is the base branch; a push compares with the commit before it.
+          if [ "$EVENT" = pull_request ]; then base=HEAD^1; else base="$BEFORE"; fi
+          if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            changed=true
+          elif git diff --quiet "$base" HEAD -- case .github/workflows/tests.yml; then
+            changed=false
+          else
+            changed=true
+          fi
+          echo "case changed: $changed"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: steps.changes.outputs.changed == 'true'
+        with:
+          python-version: "3.12"
+      - name: Install CadQuery
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libgl1 libegl1 libxrender1
+          python3 -m pip install --quiet -r case/requirements.txt
+      - name: Case tests
+        if: steps.changes.outputs.changed == 'true'
+        run: python3 -m unittest discover -s case/tests -v
+      - name: Case build
+        if: steps.changes.outputs.changed == 'true'
+        run: python3 case/build.py --no-render
+      - name: out/checks.txt matches the source
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git diff --exit-code -- case/out/checks.txt || {
+            echo "::error file=case/out/checks.txt::case/build.py wrote a different checks.txt; rebuild and commit case/out/"
+            exit 1
+          }
+
   # The ESP-IDF deck firmware (firmware/idf) for the Waveshare ESP32-P4 board,
   # in Espressif's image for the pinned ESP-IDF version. Builds the default
   # configuration (every hardware part on: key switches, knob, lights, chime)
@@ -42,7 +162,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       # The container runs as root over a checkout it does not own; without
