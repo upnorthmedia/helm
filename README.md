@@ -116,6 +116,13 @@ The screen is a 1280 x 720 touch screen. These are screenshots from the simulato
     <td><img src="docs/sim/result.png" alt="Result screen: YES on widget-api, Replied"><br><strong>Result.</strong> Queued, then firstmate's reply, or Failed with the reason.</td>
   </tr>
   <tr>
+    <td><img src="docs/sim/result-seen.png" alt="Result screen: YES on widget-api, Seen, sent 40s ago, firstmate has read it"><br><strong>Seen.</strong> Firstmate has read the note and not replied yet, with how long ago it went.</td>
+    <td><img src="docs/sim/result-stalled.png" alt="Result screen: HOLD on gizmo#42, Queued in amber, firstmate has not picked this up"><br><strong>Not picked up.</strong> Unread after 3 minutes: the result turns amber and says so.</td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/sim/list-answered.png" alt="List screen with YES sent on widget-api and HOLD sent on gizmo#42"><br><strong>Answers out.</strong> An item whose answer is still waiting on firstmate's reply says which one you sent.</td>
+  </tr>
+  <tr>
     <td><img src="docs/sim/home-calm.png" alt="Home screen with All quiet and the light bar as a dim gauge"><br><strong>All quiet.</strong> Nothing new: the light bar becomes the usage gauge.</td>
     <td><img src="docs/sim/home-context.png" alt="Home screen with the context line in amber and the last light amber"><br><strong>Near the limit.</strong> An agent at 80 percent of its context turns the line and the last light amber.</td>
   </tr>
@@ -128,7 +135,7 @@ The screen is a 1280 x 720 touch screen. These are screenshots from the simulato
 ## Features
 
 - **What needs you, not everything that is open.** The lights mean "new since you last looked". Everything already open when Helm starts counts as seen, and any touch of a key or the knob marks the rest seen. A new decision, a PR waiting on you, or a herdr agent you started waiting for approval lights the bar, rings the chime once, and goes to the top of the list. A stuck or failed firstmate worker lights the bar at once but chimes only if it is still stuck 10 minutes later, since firstmate handles it first; a waiting pane that belongs to a firstmate task does not ring on its own.
-- **One held key, one note.** YES, LATER, and HOLD each send firstmate one short note about the exact item on screen. Each note is keyed to the item, the answer, and the day, and to which ask it is: the PR's commit, or when the decision was raised. So pressing again is a replay, not a second note, while a new push or a decision raised again is a new ask. If firstmate has already read the note, the deck says "answered earlier" and shows the earlier reply. Firstmate's reply shows on the deck, even one that arrives while the bridge is restarting.
+- **One held key, one note.** YES, LATER, and HOLD each send firstmate one short note about the exact item on screen. Each note is keyed to the item, the answer, and the day, and to which ask it is: the PR's commit, or when the decision was raised. So pressing again is a replay, not a second note, while a new push or a decision raised again is a new ask. If firstmate has already read the note, the deck says "answered earlier" and shows the earlier reply. Firstmate's reply shows on the deck, even one that arrives while the bridge is restarting. Until it comes, the deck shows when firstmate has read the note ("Seen"), how long it has waited, and "firstmate has not picked this up" after 3 minutes unread; the item itself says "YES sent" (or LATER, HOLD). A HOLD or LATER after a YES that is still waiting names that YES, so firstmate knows which answer stands.
 - **Your word, behind firstmate's guards.** With the [YES rule](#the-yes-rule) in your firstmate home, firstmate treats a held YES as your word for exactly the one PR or decision it names, and nothing broader. It merges only through its own checks: the PR open, not a draft, mergeable, conflict free, and every check green at the exact current commit, read live at merge time. Helm itself cannot merge, push, or type into a pane.
 - **A short leash on the Mac.** The bridge runs a fixed allowlist of commands and refuses everything else before a process starts. It starts in dry run, logging notes and opens instead of sending them, until you start it with `--live`.
 - **Mac lock.** Lock your Mac and every key goes dark, SHOW ME too. The lock is read again right before acting on any press. The deck still lights up, so you see what waited for you.
