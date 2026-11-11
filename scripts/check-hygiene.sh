@@ -25,7 +25,11 @@ while [ $# -gt 0 ]; do
     --deny)
       [ $# -ge 2 ] || die "--deny needs a file"
       [ -f "$2" ] || die "no such deny list: $2"
-      deny_files+=("$2")
+      # Absolute now, because the scan runs from the repository root.
+      case "$2" in
+        /*) deny_files+=("$2") ;;
+        *) deny_files+=("$PWD/$2") ;;
+      esac
       shift 2
       ;;
     -h|--help) sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -43,9 +47,27 @@ trap 'rm -rf "$tmp"' EXIT
 # The deny list itself is made of the patterns it forbids, so it is not scanned.
 git ls-files -z -- . ":(exclude)$DEFAULT_DENY" > "$tmp/files"
 
+# xargs reports "no match" and "grep failed" alike, so grep's own messages
+# are collected and checked once every scan has run.
 scan() {  # scan PATTERN: print path:line:text for each match
-  xargs -0 grep -I -n -H -E -e "$1" /dev/null < "$tmp/files" || true
+  xargs -0 grep -I -n -H -E -e "$1" /dev/null < "$tmp/files" 2>> "$tmp/errors" || true
 }
+
+# Load every deny pattern and refuse a bad one before scanning, so a typo in
+# a list fails loudly instead of matching nothing.
+: > "$tmp/errors"
+: > "$tmp/patterns"
+for list in ${deny_files[@]+"${deny_files[@]}"}; do
+  rc=0
+  grep -n -v -E '^[[:space:]]*(#|$)' "$list" > "$tmp/list" || rc=$?
+  [ "$rc" -le 1 ] || die "cannot read deny list: $list"
+  while IFS= read -r entry; do
+    rc=0
+    grep -E -e "${entry#*:}" /dev/null > /dev/null 2>&1 || rc=$?
+    [ "$rc" -le 1 ] || die "invalid pattern in $list line ${entry%%:*}"
+    printf '%s\t%s\n' "$list" "${entry#*:}" >> "$tmp/patterns"
+  done < "$tmp/list"
+done
 
 hits=0
 report() {  # report REASON, reading path:line:text lines on stdin
@@ -58,7 +80,7 @@ report() {  # report REASON, reading path:line:text lines on stdin
 report "home directory path" < <(scan '/(Users|home)/[^/[:space:]]')
 
 xargs -0 grep -I -n -H -o -E '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' /dev/null \
-  < "$tmp/files" > "$tmp/emails" || true
+  < "$tmp/files" > "$tmp/emails" 2>> "$tmp/errors" || true
 while IFS= read -r line; do
   addr="${line##*:}"
   case " $ALLOWED_EMAILS " in
@@ -67,12 +89,14 @@ while IFS= read -r line; do
   esac
 done < "$tmp/emails"
 
-for list in ${deny_files[@]+"${deny_files[@]}"}; do
-  grep -v -E '^[[:space:]]*(#|$)' "$list" > "$tmp/patterns" || true
-  while IFS= read -r pattern; do
-    report "matches deny pattern in $list" < <(scan "$pattern")
-  done < "$tmp/patterns"
-done
+while IFS="$(printf '\t')" read -r list pattern; do
+  report "matches deny pattern in $list" < <(scan "$pattern")
+done < "$tmp/patterns"
+
+if [ -s "$tmp/errors" ]; then
+  cat "$tmp/errors" >&2
+  die "a scan failed; see the errors above"
+fi
 
 if [ "$hits" -gt 0 ]; then
   echo "check-hygiene: $hits problem(s); see CONTRIBUTING.md (public repository hygiene)" >&2

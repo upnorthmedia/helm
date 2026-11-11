@@ -84,6 +84,26 @@ class HygieneGuardTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 1)
         self.assertIn("notes.md:1: matches deny pattern in", proc.stdout)
 
+    def test_a_relative_deny_path_is_read_from_the_callers_directory(self):
+        self.write("docs/notes.md", "shipped with the Bluebird crew\n")
+        (self.repo / "docs" / "private-deny.txt").write_text("Bluebird\n")  # untracked
+        proc = subprocess.run(
+            ["bash", "../scripts/check-hygiene.sh", "--deny", "private-deny.txt"],
+            cwd=self.repo / "docs", capture_output=True, text=True, timeout=60,
+        )
+        self.assertEqual(proc.returncode, 1, proc.stdout + proc.stderr)
+        self.assertIn("docs/notes.md:1: matches deny pattern in", proc.stdout)
+
+    def test_an_invalid_deny_pattern_is_an_error_not_a_clean_pass(self):
+        self.write("README.md", "# Demo\n")
+        private = self.repo.parent / f"{self.repo.name}-bad-deny.txt"
+        private.write_text("unclosed(group\n")
+        self.addCleanup(private.unlink)
+        proc = self.run_guard("--deny", str(private))
+        self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
+        self.assertIn("invalid pattern", proc.stderr)
+        self.assertNotIn("clean", proc.stdout)
+
     def test_untracked_files_are_not_scanned(self):
         self.write("README.md", "# Demo\n")
         (self.repo / "scratch.txt").write_text(f"{HOME_PATH}\n")
