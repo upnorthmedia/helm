@@ -41,7 +41,7 @@ A 5 inch screen and eight lights show what your agents need. Four held keys answ
     <td width="25%" valign="top"><strong>Stay in flow</strong><br>Asks leave your windows and land on your desk: a pulse in the item's color and one chime. No tab hunting.</td>
     <td width="25%" valign="top"><strong>Answer with one held key</strong><br>Hold YES, LATER, or HOLD for a second and firstmate gets one note about the exact item on screen.</td>
     <td width="25%" valign="top"><strong>See the whole story</strong><br>Tap SHOW ME and the agent's pane comes forward, with its review board, report, or PR open in your browser.</td>
-    <td width="25%" valign="top"><strong>Nothing happens by accident</strong><br>Every answer is a held press, firstmate merges only through its own checks, and the bridge starts in dry run.</td>
+    <td width="25%" valign="top"><strong>Nothing happens by accident</strong><br>Every answer is a held press, firstmate merges only through its own checks and only with your rule, and the bridge starts in dry run.</td>
   </tr>
 </table>
 
@@ -65,7 +65,7 @@ Helm moves those asks onto your desk. It shows what is new since you last touche
 
 | Control | Action | What it does |
 | --- | --- | --- |
-| **YES** (green check) | hold 1 s | "Go." On a PR waiting to merge, the note names the PR and the commit the deck showed, and firstmate merges that exact commit under its normal checks; if anything was pushed since, it does not merge and replies. On a decision, it goes with its recommendation, only if it gave exactly one. If neither fits, it changes nothing and replies. YES stays dark when the PR is known red or conflicted. |
+| **YES** (green check) | hold 1 s | "Go." With the [YES rule](#the-yes-rule) in your firstmate home: on a PR waiting to merge, the note names the PR and the commit the deck showed, and firstmate merges that exact commit under its normal checks; if anything was pushed since, it does not merge and replies. On a decision, it goes with its recommendation, only if it gave exactly one. If neither fits, it changes nothing and replies. YES stays dark when the PR is known red or conflicted. |
 | **LATER** (blue clock) | hold 1 s | "Not now." Asks firstmate to defer the item until tomorrow, written as the date, so a note read after midnight still means the day you pressed it. |
 | **HOLD** (amber pause) | hold 1 s | "Stop, and talk to me." Tells firstmate not to proceed and to raise it with you in chat. The one answer key that also works on a stuck worker. |
 | **SHOW ME** (white ring) | tap | "Let me see." Brings the item's herdr pane to the front (the worker's own pane, or firstmate's pane for a decision), then opens the item in your browser: its live Lavish review board, else its report as a styled page, else its PR. Lit when the item has a herdr pane or something to open (a review board link, a report in its home, or a PR); with no pane it just opens that. |
@@ -94,6 +94,10 @@ A key is lit only when its action applies to the selected item. While you hold a
 | No gauge lights | Usage is unknown. Helm never shows a full gauge it cannot vouch for. |
 
 **The chime:** one short tone when something new needs you, through the board's own speaker. Silent while firstmate is away. Mute it with a long press on the knob.
+
+### The YES rule
+
+Firstmate does not take a note from a bridge as approval by default. A held YES is only a note in firstmate's inbox until you add a rule to your own firstmate home that tells firstmate to treat a note starting with the deck's exact YES wording as your word for the one PR or decision it names. Without that rule, the note is a message to firstmate, not an approval, and a merge still needs your word in chat. A setup guide with the rule's text is coming. [SECURITY.md](SECURITY.md) explains what such a note can and cannot do.
 
 ## What it shows
 
@@ -125,7 +129,7 @@ The screen is a 1280 x 720 touch screen. These are screenshots from the simulato
 
 - **What needs you, not everything that is open.** The lights mean "new since you last looked". Everything already open when Helm starts counts as seen, and any touch of a key or the knob marks the rest seen. A new decision, a PR waiting on you, or a herdr agent you started waiting for approval lights the bar, rings the chime once, and goes to the top of the list. A stuck or failed firstmate worker lights the bar at once but chimes only if it is still stuck 10 minutes later, since firstmate handles it first; a waiting pane that belongs to a firstmate task does not ring on its own.
 - **One held key, one note.** YES, LATER, and HOLD each send firstmate one short note about the exact item on screen. Each note is keyed to the item, the answer, and the day, and to which ask it is: the PR's commit, or when the decision was raised. So pressing again is a replay, not a second note, while a new push or a decision raised again is a new ask. If firstmate has already read the note, the deck says "answered earlier" and shows the earlier reply. Firstmate's reply shows on the deck, even one that arrives while the bridge is restarting.
-- **Your word, behind firstmate's guards.** Firstmate treats a held YES as your word for exactly the one PR or decision it names, and nothing broader. It merges only through its own checks: the PR open, not a draft, mergeable, conflict free, and every check green at the exact current commit, read live at merge time. Helm itself cannot merge, push, or type into a pane.
+- **Your word, behind firstmate's guards.** With the [YES rule](#the-yes-rule) in your firstmate home, firstmate treats a held YES as your word for exactly the one PR or decision it names, and nothing broader. It merges only through its own checks: the PR open, not a draft, mergeable, conflict free, and every check green at the exact current commit, read live at merge time. Helm itself cannot merge, push, or type into a pane.
 - **A short leash on the Mac.** The bridge runs a fixed allowlist of commands and refuses everything else before a process starts. It starts in dry run, logging notes and opens instead of sending them, until you start it with `--live`.
 - **Mac lock.** Lock your Mac and every key goes dark, SHOW ME too. The lock is read again right before acting on any press. The deck still lights up, so you see what waited for you.
 - **Away and quiet.** Put firstmate in away mode and the answer keys lock and the chime goes silent. In quiet mode only the chime goes silent: firstmate treats you as present, so YES, LATER, and HOLD still work. SHOW ME still works and the lights still show new items in both.
@@ -267,7 +271,7 @@ For the bridge, yes: it starts at login through launchd and reads the Mac's lock
 Finished units are planned. There is no date or price yet; star or watch the repo for updates.
 
 **Is it safe to press YES?**
-It is built so the wrong press is hard and a dangerous one is impossible. Every answer needs a one second hold with the exact item on screen. Each ask, answer, and day sends at most one note: pressing again is a replay, while a new commit on the PR or a decision raised again is a new ask. A YES on a PR names the commit the deck had when you started holding, so a push after that is not merged on your word, and a push during the hold refuses the YES with "PR changed, look again". YES is dark on a PR known to be red or conflicted, and firstmate merges only when the PR is open, conflict free, and green at the current commit, checked live. Helm itself cannot merge, push, or type into a pane, and the bridge runs only a fixed allowlist of commands, in dry run until you start it with `--live`.
+It is built so the wrong press is hard and a dangerous one is impossible. Every answer needs a one second hold with the exact item on screen. Each ask, answer, and day sends at most one note: pressing again is a replay, while a new commit on the PR or a decision raised again is a new ask. A YES on a PR names the commit the deck had when you started holding, so a push after that is not merged on your word, and a push during the hold refuses the YES with "PR changed, look again". YES is dark on a PR known to be red or conflicted. Firstmate merges on a YES only with the [YES rule](#the-yes-rule) in your home, and then only when the PR is open, conflict free, and green at the current commit, checked live. Helm itself cannot merge, push, or type into a pane, and the bridge runs only a fixed allowlist of commands, in dry run until you start it with `--live`.
 
 **What does it cost to build?**
 About $170: the priced parts on the [bill of materials](docs/build/bom.md) come to $171.51 (checked 2026-11-10), before the SendCutSend case order and the logo engraving, which are not quoted yet, and shipping from six vendors.
