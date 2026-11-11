@@ -20,12 +20,10 @@ Helm is a desk control deck for <a href="#what-you-need">firstmate and herdr</a>
 > **Status:** designed, simulated, and the firmware builds in CI. It has not yet run on a real board, and the product images and video are renders. Details under [Project status](#project-status).
 
 <p align="center">
-  <a href="docs/media/helm-teaser.mp4"><img src="docs/images/teaser-poster.jpg" alt="Play the 35 second Helm teaser video" width="880"></a>
+  <a href="docs/media/helm-teaser.mp4?raw=true"><img src="docs/images/teaser-poster.jpg" alt="Play the 35 second Helm teaser video" width="880"></a>
   <br>
-  <sub>The 35 second teaser (with sound). Click to play.</sub>
+  <sub>Watch the 35 second teaser (MP4, 10 MB, with sound).</sub>
 </p>
-
-<video src="docs/media/helm-teaser.mp4" poster="docs/images/teaser-poster.jpg" controls width="880"></video>
 
 ## Why Helm
 
