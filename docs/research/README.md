@@ -1,5 +1,9 @@
 # Helm research
 
+> **Decision record of 2026-11-09.** This page records the research and decisions as they stood on 2026-11-09, before any firmware, bridge, or CAD existed. It is kept as the record of why Helm is shaped the way it is, not as a description of what is on `main`. What was built is in [docs/architecture.md](../architecture.md); how to set up a firstmate home for it is in [docs/firstmate-setup.md](../firstmate-setup.md).
+>
+> The main changes since: v2 moved to the 5 inch Waveshare ESP32-P4-WIFI6-Touch-LCD-5, turned landscape, with ESP-IDF and LVGL instead of Arduino (the 4 inch v1 is in git history at commit `b2f7670`); the deck links over the P4's native USB, not the CH343P; the bridge uses only the Python standard library; and the YES rule of D14 lives in each user's own firstmate home, as an opt-in, not in firstmate.
+
 Helm is a desk device for the captain of a firstmate fleet running in herdr, modeled on the Autonomous Harness Pro. It does two jobs:
 
 1. **Glance.** Show, without switching windows, whether anything new needs the captain: a decision opened, a worker blocked or failed, a PR ready, an agent in some herdr pane waiting on an approval.
@@ -7,7 +11,7 @@ Helm is a desk device for the captain of a firstmate fleet running in herdr, mod
 
 The Harness Pro does the first job and deliberately not the second: it shows an agent's question but does not answer it on the device. Physical answer keys are Helm's reason to exist.
 
-This is one merged research set, built from two earlier passes and a review of both, all dated 2026-11-09. Docs only: no firmware, bridge, schematic, or CAD yet.
+This is one merged research set, built from two earlier passes and a review of both, all dated 2026-11-09. It was written before any firmware, bridge, schematic, or CAD existed.
 
 | Doc | What it covers |
 | --- | --- |
@@ -72,7 +76,7 @@ All decided on 2026-11-09. D3, D7, D9, D19, and D21 are the captain's recorded a
 - **D11. What the bridge reads:** each home's summary for state and its fleet ledger for event edges, plus `pr-health.json`, `fm-inbox.sh ready` and `receipts`.
 - **D12. Fleet ledger:** create `config/fleet-ledger` in the primary home when the bridge is built (the local second mate homes already have it). Costs: the file is never rotated and carries status text unscrubbed.
 - **D13. How a key press reaches firstmate:** captain notes only, through `bin/fm-inbox.sh note` in the primary home.
-- **D14. Held YES as the captain's word to merge:** yes, with a one second hold, the exact PR on screen, the key dark when the PR is known red or conflicted, and one sentence added to firstmate's rules saying a note beginning "Captain, from the Helm deck" is a current explicit captain instruction for exactly what it names. That sentence is a firstmate change outside this repo and still has to be made; until then YES is a request firstmate may confirm in chat.
+- **D14. Held YES as the captain's word to merge:** yes, with a one second hold, the exact PR on screen, the key dark when the PR is known red or conflicted, and one sentence added to firstmate's rules saying a note beginning "Captain, from the Helm deck" is a current explicit captain instruction for exactly what it names. As built, that sentence is not a firstmate change: firstmate's default is that a note from an outside bridge does not approve a merge or answer a decision. It is a rule each user adds to their own firstmate home as an opt-in, now also pinning the commit the deck showed; its text is in [docs/firstmate-setup.md](../firstmate-setup.md). Without it, YES is a request firstmate confirms in chat.
 - **D15. YES on a decision that is not a merge:** sends "go with your recommendation"; firstmate acts only if it gave exactly one.
 - **D16. herdr state:** poll `herdr agent list` and count `working` and `blocked` across all panes.
 - **D17. SHOW ME:** may focus a herdr pane (`herdr agent focus`); typing into panes stays forbidden.
@@ -110,4 +114,4 @@ All decided on 2026-11-09. D3, D7, D9, D19, and D21 are the captain's recorded a
 - YES is a request: firstmate reads notes on its next turn, so the deck shows "queued" while it is busy.
 - Arduino display bring-up on the P4 module has no ready preset.
 - Key fit depends on a laser tolerance wider than the switch's; the coupon covers it.
-- The second mate duplicate rule rests on an observed key shape, not a documented contract.
+- The second mate duplicate rule rests on an observed key shape, not a documented contract. (Since then, firstmate's `bin/fm-captain-hold.sh` header documents the `captain-hold-<task>-<n>` key.)

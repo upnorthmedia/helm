@@ -217,6 +217,9 @@ In the simulator, hold Y, L, or H for YES, LATER, and HOLD, tap S for SHOW ME, u
 # The bridge alone: one Model as JSON from the firstmate home, then exit
 FM_HOME=~/path/to/firstmate python3 -m helm.bridge --once
 
+# What the firstmate home is missing for Helm, one line per check, read only (see docs/firstmate-setup.md)
+FM_HOME=~/path/to/firstmate python3 -m helm.bridge --doctor
+
 # Tests
 python3 -m unittest discover -s tests -t .
 
@@ -281,9 +284,11 @@ About $170: the priced parts on the [bill of materials](docs/build/bom.md) come 
 - Build: [bill of materials](docs/build/bom.md), [wiring](docs/build/wiring.md), [assembly](docs/build/assembly.md)
 - Case: [case/README.md](case/README.md), [engraving](case/out/engrave/README.md)
 - Firmware: [firmware/idf/README.md](firmware/idf/README.md) (the ESP-IDF app), [firmware/README.md](firmware/README.md) (the portable core)
+- Setting up firstmate for Helm, including the YES rule you add to your own home: [docs/firstmate-setup.md](docs/firstmate-setup.md)
+- The system as built: [docs/architecture.md](docs/architecture.md)
 - Bridge: [helm/bridge/README.md](helm/bridge/README.md)
 - Simulator and wire: [sim/README.md](sim/README.md)
-- Research and design decisions: [docs/research/README.md](docs/research/README.md)
+- Research and design decisions, the decision record of 2026-11-09: [docs/research/README.md](docs/research/README.md)
 
 ## Get started
 

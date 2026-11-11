@@ -28,8 +28,9 @@ from helm.bridge.sources import status_tail
 
 log = logging.getLogger(__name__)
 
-# Firstmate treats a note beginning with exactly this text as the captain's word
-# for the one task, key, or PR it names (D14). Do not reword it.
+# A firstmate home with the YES rule (docs/firstmate-setup.md, the user's own opt-in) treats a
+# note beginning with exactly this text as the captain's word for the one task, key, or PR it
+# names (D14). The rule and the doctor match these words byte for byte: do not reword them.
 YES_PREFIX = "Captain, from the Helm deck, held to confirm: YES"
 NOTE_EXIT_SAVED_NOT_ANNOUNCED = 3
 # On start, notes older than this are not taken back: firstmate has had a day to reply.
