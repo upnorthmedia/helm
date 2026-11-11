@@ -50,9 +50,9 @@ Only what the steps in [assembly.md](assembly.md) use:
 
 | Part | Buy | Used | Vendor, SKU | Price | Stock | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| Brass heat-set inserts, M3 x 4 mm, 50 pack | 1 | 4 | [Adafruit 4255](https://www.adafruit.com/product/4255) | $5.95 | In stock | One in each cradle leg. Adafruit gives only the outside diameter (4.2 mm); the case's holes are 4.0 mm (`PRINT_INSERT_D`), so check what these want |
+| Brass heat-set inserts, M3 x 4 mm, 50 pack | 1 | 10 | [Adafruit 4255](https://www.adafruit.com/product/4255) | $5.95 | In stock | One in each cradle leg, and six in the printed test cover's flanges. Adafruit gives only the outside diameter (4.2 mm); the case's holes are 4.0 mm (`PRINT_INSERT_D`), so check what these want |
 | Closed-cell neoprene foam sheet, 1/16 inch (1.6 mm), adhesive back, 12 x 59 inch | 1 | 1 pad about 100 x 40 mm, plus scraps | [Amazon B0FK5DWHXM](https://www.amazon.com/dp/B0FK5DWHXM) | $9.97 | In stock | The pad between the module and the cradle, and the tape under the USB-C breakout |
-| PETG filament | | about 60 g (estimate) | Any | Unverified | | Black or grey for the cradle and speaker holder; **white or natural** for the light holder, which is the diffuser |
+| PETG filament | | about 60 g, plus about 150 g for the printed test enclosure (estimates) | Any | Unverified | | Black or grey for the cradle, its tabs, the speaker holder and the test enclosure; **white or natural** for the light holder, which is the diffuser |
 | VHB tape or epoxy | | a few cm | Any | Unverified | | Bonds the light holder and the speaker holder under the face |
 
 ## Phase 3: SendCutSend metal case
@@ -137,7 +137,7 @@ Nothing fastens through the face. The cover's two bottom flanges carry six S-M3-
 | Tinkersphere 4198 speaker and the Adafruit 3922 PicoBlade lead | v1 list | The LCD-5 ships with a speaker on its own GH1.25 plug, and its socket is not PicoBlade |
 | Female-female 2.54 to 2.0 mm jumpers (Adafruit 1919) | v1 list | The LCD-5's header is 2.54 mm |
 | Anodized aluminum knob, 20 mm (Adafruit 5527) | v1 list | The captain picked a machined black knob that hides the nut |
-| M3 x 8 and M3 x 10 screws (Pololu 1076, 2695), M3 x 4 nylon spacers | v1 list | Face screws, module clips, and the printed test enclosure are gone; the case uses M3 x 6 throughout |
+| M3 x 8 and M3 x 10 screws (Pololu 1076, 2695), M3 x 4 nylon spacers | v1 list | Face screws, module clips, and the v1 printed test enclosure are gone; the case and the new printed test enclosure use M3 x 6 throughout |
 | Buzzer, 5 V (Adafruit 1536) | parts.md, plan 4.8 | The chime plays through the board's own speaker output, so no buzzer is needed |
 | STEMMA QT cable, 50 mm (Adafruit 4399) | plan 0.3 | The board has no STEMMA QT port, see above |
 | Translucent keycaps (Adafruit 4956) | plan 0.3 | Superseded by the backlit icon caps |

@@ -203,11 +203,96 @@ class FitTest(unittest.TestCase):
         self.assertLess(P.SCREEN_WINDOW_X, P.MODULE_SX - 2 * 3.0)
         self.assertLess(P.SCREEN_WINDOW_V, P.MODULE_SV - 2 * 3.0)
 
+    def test_tabs_stop_the_module_sliding_sideways(self):
+        """Negative control: the module moved 1 mm toward any edge (twice the
+        tab gap) hits a locating tab, so the tabs reach the glass on all four
+        sides."""
+        from helm_case import assembly
+        from helm_case import params as P
+        from helm_case.printed import plate_box, to_case
+
+        t = P.SHEET_T
+        tabs = [it for it in assembly.cradle_items() if it.name.startswith("cradle_tab")]
+        self.assertEqual(len(tabs), len(P.CRADLE_TABS))
+        x0, v0 = P.MODULE_X, P.MODULE_V
+        for dx, dv in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            module = to_case(plate_box(x0 + dx, x0 + dx + P.MODULE_SX, v0 + dv, v0 + dv + P.MODULE_SV, -t - P.MODULE_THICKNESS, -t))
+            hits = assembly.interference([assembly.Item("module", module, (0, 0, 0), "part")] + tabs)
+            self.assertTrue(hits, (dx, dv))
+
     def test_case_fits_a_220_mm_print_bed(self):
         from helm_case import params as P
 
         self.assertLessEqual(max(P.WIDTH, P.FACE_LENGTH, P.DEPTH), 220.0)
         self.assertTrue(math.isclose(P.BACK_HEIGHT - P.FRONT_HEIGHT, P.DEPTH * math.tan(P.SLOPE)))
+
+
+@unittest.skipUnless(HAVE_CAD, "CadQuery is not installed (see case/README.md)")
+class PrintedEnclosureTest(unittest.TestCase):
+    def test_printed_build_has_no_overlaps(self):
+        """The printed cover and base take the same printed and bought parts
+        as the metal case."""
+        from helm_case import assembly
+
+        self.assertEqual(assembly.interference(assembly.printed_items()), [])
+
+    def test_printed_parts_keep_the_metal_outside(self):
+        from helm_case import printed, sheet
+        from helm_case import params as P
+
+        for metal, prints in ((sheet.cover_solid(), printed.printed_cover()), (sheet.base_solid(), printed.printed_base())):
+            a, b = metal.BoundingBox(), prints.BoundingBox()
+            for k in ("xmin", "xmax", "ymin", "ymax"):
+                self.assertAlmostEqual(getattr(a, k), getattr(b, k), places=2, msg=k)
+            self.assertLess(abs(a.zmax - b.zmax), 0.5)  # the printed cover's outside corners are rounder
+        self.assertAlmostEqual(printed.printed_base().BoundingBox().zmin, P.SHEET_T - P.PRINT_FLOOR, places=3)
+
+    def test_printed_cover_has_every_metal_hole(self):
+        """Every face cut and the jack hole are open through the printed
+        cover."""
+        import cadquery as cq
+
+        from helm_case import layout, printed, sheet
+        from helm_case import params as P
+
+        cover = printed.printed_cover()
+        cutters = sheet.plate_cutters(layout.face_cuts(), -P.PRINT_WALL - 1, 1)
+        cutters.append(cq.Solid.makeCylinder(P.BACK_JACK_HOLE / 2 - 0.01, 20, cq.Vector(P.BACK_JACK_X, P.DEPTH - 10, P.BACK_JACK_Z), cq.Vector(0, 1, 0)))
+        for c in cutters:
+            self.assertLess(cover.intersect(c).Volume(), 0.01)
+
+    def test_screws_reach_their_inserts_through_the_printed_base(self):
+        """An M3 x 6 screw up through each base hole meets nothing until its
+        insert: the flange holes of the printed cover and the cradle's legs."""
+        import cadquery as cq
+
+        from helm_case import printed
+        from helm_case import params as P
+
+        z0 = P.SHEET_T - P.PRINT_FLOOR
+        flange, legs = printed.base_screw_xy()
+        parts = [printed.printed_base(), printed.printed_cover(), printed.cradle()]
+        for x, y in flange + legs:
+            screw = cq.Solid.makeCylinder(1.5, 6.0, cq.Vector(x, y, z0))
+            for part in parts:
+                self.assertLess(part.intersect(screw).Volume(), 0.01, (x, y))
+
+    def test_every_printed_part_fits_the_bed(self):
+        from build import stl_parts, to_print_bed
+        from helm_case import params as P
+
+        for name, shape in stl_parts().items():
+            bb = to_print_bed(shape).BoundingBox()
+            self.assertLessEqual(max(bb.xlen, bb.ylen), P.PRINT_BED, name)
+            self.assertEqual(len(shape.Solids()), 1, name)
+
+    def test_cradle_tab_prints_on_its_glass_side(self):
+        from build import to_print_bed
+        from helm_case import printed
+        from helm_case import params as P
+
+        bb = to_print_bed(printed.cradle_tab_for_print()).BoundingBox()
+        self.assertAlmostEqual(bb.zlen, P.CRADLE_TAB_T, places=3)
 
 
 if __name__ == "__main__":

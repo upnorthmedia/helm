@@ -44,10 +44,11 @@ def _p(shape):
     return to_case(shape)
 
 
-def bought_parts(keycap=None):
+def bought_parts(keycap=None, back_wall_t=P.SHEET_T):
     """Stand-ins for the bought parts under and on the face.
     keycap: (square base, height) of the caps, default the chosen flat caps;
-    the fit check also runs with the largest aluminum cap envelope."""
+    the fit check also runs with the largest aluminum cap envelope.
+    back_wall_t: the cover's back wall, which the jack's nut sits behind."""
     t = P.SHEET_T
     cap_size, cap_height = keycap or (P.KEYCAP, P.KEYCAP_HEIGHT)
     items = []
@@ -112,7 +113,7 @@ def bought_parts(keycap=None):
     v = P.MODULE_V + P.MODULE_USB_UART
     plug = plate_box(mx - 22, mx, v - ow / 2, v + ow / 2, w_usb - oh / 2, w_usb + oh / 2)
     items.append(Item("flash_plug", _p(_fillet(plug, "|X", oh / 2 - 0.01)), CABLE, "part"))
-    items += usb_link_parts(t, t, t)
+    items += usb_link_parts(t, back_wall_t, t)
     return items
 
 
@@ -211,12 +212,13 @@ def _legend(i, x, v, w):
 def cradle_items():
     """The printed cradle under the module on four legs, each screwed up
     through the floor into a heat-set insert, with foam between the module's
-    back and the cradle."""
+    back and the cradle, and the locating tabs around the glass."""
     t = P.SHEET_T
     w_back = -t - P.MODULE_THICKNESS
     x0, x1, v0, v1 = printed.cradle_plate_rect()
     foam = Item("cradle_foam", _p(plate_box(x0 + 4, x1 - 4, v0 + 4, v1 - 4, w_back - P.CRADLE_FOAM, w_back)), FOAM, "part")
-    return [Item("cradle", printed.cradle(), PRINTED, "case"), foam]
+    tabs = [Item(f"cradle_tab{i}", tab, PRINTED, "case") for i, tab in enumerate(printed.cradle_tabs())]
+    return [Item("cradle", printed.cradle(), PRINTED, "case"), foam] + tabs
 
 
 def logo_item():
@@ -244,6 +246,22 @@ def metal_items(keycap=None):
             items.append(Item(f"flangenut{len(items)}", cq.Solid.makeCylinder(3.0, P.S_M3_PROUD, cq.Vector(x, y, 2 * t)), STEEL, "hw"))
     items += bought_parts(keycap)
     items.append(logo_item())
+    return items
+
+
+def printed_items(keycap=None):
+    """Every part of the printed test enclosure: the printed cover and base
+    with the same printed parts and bought parts as the metal build. The
+    flange inserts sit inside their holes and are not modelled."""
+    t = P.SHEET_T
+    items = [
+        Item("print_cover", printed.printed_cover(), PRINTED, "case"),
+        Item("print_base", printed.printed_base(), PRINTED, "case"),
+        Item("light_holder", to_case(printed.light_holder(t)), WHITE, "case"),
+        Item("speaker_holder", to_case(printed.speaker_holder(t)), PRINTED, "case"),
+    ]
+    items += cradle_items()
+    items += bought_parts(keycap, back_wall_t=P.PRINT_WALL)
     return items
 
 

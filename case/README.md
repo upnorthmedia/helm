@@ -1,6 +1,6 @@
 # Helm case
 
-A sloped desk case sized to Helm's parts, as parametric source. One set of dimensions in [`helm_case/params.py`](helm_case/params.py) drives the **SendCutSend sheet-metal case**: two bent parts in 0.063 inch 5052 aluminum, black anodized (STEP models and DXF flat patterns), plus four small printed parts that go inside it (STL), and the files a laser shop needs to engrave the logo.
+A sloped desk case sized to Helm's parts, as parametric source. One set of dimensions in [`helm_case/params.py`](helm_case/params.py) drives the **SendCutSend sheet-metal case**: two bent parts in 0.063 inch 5052 aluminum, black anodized (STEP models and DXF flat patterns), plus the small printed parts that go inside it (STL), a printed test enclosure for fitting everything before the metal order, and the files a laser shop needs to engrave the logo.
 
 ![Metal case, assembled](out/png/helm_case_metal.png)
 
@@ -43,7 +43,7 @@ case/.venv/bin/python -m unittest discover -s case/tests
 | `helm_case/params.py` | Every dimension, each marked VENDOR or ASSUMED |
 | `helm_case/layout.py` | The face layout; the test coupon |
 | `helm_case/sheet.py` | Bend math, the bent cover and base, flat patterns |
-| `helm_case/printed.py` | The printed parts inside the case |
+| `helm_case/printed.py` | The printed parts inside the case; the printed test enclosure |
 | `helm_case/assembly.py` | The case with stand-ins for the bought parts; interference check |
 | `helm_case/checks.py` | SendCutSend rule checks on flat parts and DXF files; the logo clearance check |
 | `helm_case/logo.py` | Places the logo on the face and writes the engraving files |
@@ -68,7 +68,7 @@ Looking at the face, front edge toward you:
 - **Service slot** (`PORT_BAY_V`): a closed slot in the left wall, 33 mm long, over the module's USB-C edge. It exposes both receptacles, so the flashing cable plugs in without opening the case.
 - **RESET, BOOT, and POWER** are on the module's long edge that faces the front, under the face and out of reach. Flashing does not need them: the CH343P resets the board into its bootloader through DTR and RTS (Waveshare's schematic). Whether the board powers on by itself when USB is plugged in is **not verified**; check it on the bench before closing the case ([wiring.md check 5](../docs/build/wiring.md#verify-on-the-real-board)).
 
-The module rests face up on a printed **cradle**: a plate under its back, with a 1.6 mm foam pad between (about 1.5 mm compressed), on four legs that stand on the floor and take a heat-set insert each for an M3 screw up through the floor. With the cover on, the glass sits against the underside of the face and the foam takes up the tolerance. The cradle stops 1.5 mm short of the board's 40-pin header, a female socket on the module's back edge, so jumper plugs go into it from below; the fit check models the socket and its plugs. Nothing fastens to the face, so the face shows only the window, the keys, the knob, the slots, the light bar, and the logo.
+The module rests face up on a printed **cradle**: a plate under its back, with a 1.6 mm foam pad between (about 1.5 mm compressed), on four legs that stand on the floor and take a heat-set insert each for an M3 screw up through the floor. With the cover on, the glass sits against the underside of the face and the foam takes up the tolerance. The cradle stops 1.5 mm short of the board's 40-pin header, a female socket on the module's back edge, so jumper plugs go into it from below; the fit check models the socket and its plugs. Five printed **locating tabs** stand around the glass, 0.5 mm from its edges (`CRADLE_TAB_GAP`), so the module cannot slide sideways: one on the right, two on the back (one each side of the header), one on the left behind the USB-C plugs, and one on the front behind the light holder, clear of the speaker holder. Each tab pushes into a slot in an arm of the cradle and stops 0.8 mm under the face. They are separate parts because the cradle prints module side down, so anything rising from it toward the face would point into the bed. Nothing fastens to the face, so the face shows only the window, the keys, the knob, the slots, the light bar, and the logo.
 
 ## Keys and caps
 
@@ -112,14 +112,30 @@ The LCD-5 keeps the 4B's pair of USB-C receptacles on one short edge, a CH343P U
 | STL | Qty | Orientation | Supports | Material |
 | --- | --- | --- | --- | --- |
 | `print_cradle.stl` | 1 | Module side down, as exported; the legs lean 15 degrees | None | PETG |
+| `print_cradle_tab.stl` | 5 | Glass side down, as exported | None | PETG |
 | `print_light_holder.stl` | 1 | Open side down, as exported; the diffuser bridges 10.6 mm | None | **White or natural** PETG (it is the diffuser) |
 | `print_speaker_holder.stl` | 1 | Flat, as exported | None | PETG |
 | `print_mx_coupon.stl` | 1 | Plate on the bed, rim up | None | PETG |
+| `print_test_cover.stl` | 1 | Face down, as exported | **Under the two bottom flanges only** | PETG; bench test only ([below](#printed-test-enclosure)) |
+| `print_test_base.stl` | 1 | Floor down, as exported | None; the service slot's top edge is a 33 mm sloped bridge, and any sag there is clearance only | PETG; bench test only |
 
 - 0.2 mm layers, 3 walls, 20 percent infill. PETG because the module and backlight run warm.
 - The cradle's legs take an M3 heat-set insert each from below (holes 4.0 mm, `PRINT_INSERT_D`, 6.5 mm deep; match your inserts). A 1.6 mm adhesive foam pad goes on the cradle's top, under the module's back.
+- Push each locating tab into its slot from the cradle's top, glass side toward the module, until its shoulder sits on the arm; a drop of CA glue holds it.
 - The light holder and the speaker holder bond to the underside of the face (VHB tape or epoxy), since nothing on the face can hold them.
 - Print the coupon first if you want an early check of the key and knob holes on your switches; the metal coupon below is the one that decides the hole sizes.
+
+### Printed test enclosure
+
+`print_test_cover.stl` and `print_test_base.stl` are the metal cover and base as prints, so the whole deck (board, keys, knob, light bar, speaker, back jack, cradle and wiring) can be fitted and used on the bench before the SendCutSend order. They keep the metal parts' split, outside, holes and mounting positions:
+
+- **Same outside.** Both follow the metal parts' outside surfaces; the printed cover's outside corners are a little rounder (3.5 mm against 2.5 mm). The base's floor is 2.4 mm (`PRINT_FLOOR`) and thickens downward, so the printed case stands 0.8 mm taller while the floor's top stays where the metal's is.
+- **Thicker walls, inward.** The cover's walls and face are 3.0 mm (`PRINT_WALL`) and the base's side walls 2.2 mm (`PRINT_SIDE_WALL`, still 0.5 mm clear of the cover's edges). Wherever a part bears on the face (the module and its tabs, the switches, the encoder, the speaker and light holders), the face is pocketed back to the metal's 1.6 mm, so every part sits exactly where it does in the metal case, the switches clip into a 1.6 mm plate, and the same cradle and holders fit both.
+- **Same holes.** Every face cut, the back-wall jack hole, the service slot and the ten base screw holes are where they are in the metal; `case/tests` checks each is open.
+- **Inserts for nuts.** The cover's bottom flanges are 4.4 mm thick (`PRINT_FLANGE_T`) with an M3 x 4 heat-set insert, pressed in from below, where the metal has each S-M3-0 nut. The same ten M3 x 6 screws assemble it; through the 2.4 mm floor they engage 3.6 mm of thread.
+- **One piece each, no split.** Each part fits a 256 x 256 mm bed (`print_test_cover.stl` 139.6 x 143.7 mm, `print_test_base.stl` 145.0 x 135.7 mm), so they need no joints or alignment features. The cover prints face down, so the face and its holes come out flat and true; its two bottom flanges then overhang and need support.
+
+The fit check runs on the printed build too (below). It is a bench stand-in, not a finish part: it shows nothing about the anodized face, the logo, or SendCutSend's bends.
 
 ## SendCutSend sheet-metal case
 
@@ -164,15 +180,15 @@ SendCutSend makes its own flat pattern from a STEP, so the flat DXFs of the bent
 ### Order plan
 
 1. **Coupon first, deburred and black anodized** (the coating slightly shrinks the holes, so the fit matches the finished case): key holes 13.95, 14.00, 14.05, 14.10 (1 to 4 dots below each) and knob holes 7.2 and 7.5 (1 or 2 dots above). The 14 mm key hole needs +/- 0.05 mm and the laser holds +/- 0.127 mm, so this decides `KEY_HOLE` and `ENCODER_HOLE`.
-2. On the bench, measure the assumptions below on the real board, switches, knob, and speaker, and print the four printed parts. Update `params.py` and rebuild.
+2. On the bench, print the printed parts and the [printed test enclosure](#printed-test-enclosure), fit the whole deck in it, and measure the assumptions below on the real board, switches, knob, and speaker. Update `params.py` and rebuild.
 3. Order the cover and base, black anodized with the six nuts. No extra coupon: the order 1 coupon is the laser shop's test piece. Check the cover's bend preview before paying (see the open risk above).
 4. Have a local fiber laser shop mark the logo ([`out/engrave/`](out/engrave/README.md)), test piece first.
 
 ## Fit check
 
-The interference check (`assembly.interference`) builds the whole case with stand-ins for every bought part and reports any two solids that overlap by more than 0.01 cubic mm. It covers the cover, base, cradle and foam, light and speaker holders, flange nuts, module, the module's 40-pin header and the jumper plugs in it, switches, NeoKeys and their wiring, caps, encoder and board, knob, speaker, light stick, back jack and nut, breakout, jack lead, ribbon and its plugs, and the flashing plug. It runs twice: with the chosen flat caps, and with the largest aluminum cap envelope. Both report 0 overlaps.
+The interference check (`assembly.interference`) builds the whole case with stand-ins for every bought part and reports any two solids that overlap by more than 0.01 cubic mm. It covers the cover, base, cradle, its locating tabs and foam, light and speaker holders, flange nuts, module, the module's 40-pin header and the jumper plugs in it, switches, NeoKeys and their wiring, caps, encoder and board, knob, speaker, light stick, back jack and nut, breakout, jack lead, ribbon and its plugs, and the flashing plug. It runs three times: with the chosen flat caps, with the largest aluminum cap envelope, and on the [printed test enclosure](#printed-test-enclosure) (printed cover and base, the same printed and bought parts). All three report 0 overlaps.
 
-Four negative controls in `case/tests` prove it notices a fault: without the service slot the flashing plug hits the left wall; without its hole the jack hits the back wall; a cradle running under the header hits the jumper plugs; and with the logo at its first-round position the logo check fails.
+Five negative controls in `case/tests` prove it notices a fault: without the service slot the flashing plug hits the left wall; without its hole the jack hits the back wall; a cradle running under the header hits the jumper plugs; the module moved 1 mm toward any edge hits a locating tab; and with the logo at its first-round position the logo check fails.
 
 ## Parts and sources
 
@@ -203,6 +219,7 @@ Everything here comes from a guess, a typical value, or a reading of a drawing t
 | The boxed speaker (`SPEAKER_BOX`) | 30 x 20 x 6.8 mm (Waveshare's own 2 W cavity speaker) | The speaker that comes with the board | Speaker holder |
 | Screen window (`SCREEN_WINDOW_X`, `SCREEN_WINDOW_V`) | 111.8 x 63.8 mm | That the face frames the lit area with no border showing and does not press on the touch area | Face window |
 | Cradle and foam (`CRADLE_T`, `CRADLE_FOAM`) | 3 mm plate, 1.5 mm foam compressed | That the module sits firmly against the face without bowing the glass, and does not slide | Cradle leg length |
+| Locating tabs (`CRADLE_TAB_GAP`, `CRADLE_TAB_TOP`) | 0.5 mm from the glass, top 0.8 mm under the face | That the glass drops in between the tabs without forcing, and that its edge is the module's outermost edge where the tabs touch it | Tab positions |
 | Encoder bushing on the 5880 (`ENCODER_HOLE`) | M7 x 0.75, hole 7.5 | Bushing thread and length, and whether it has an anti-rotation tab (add a hole if so) | Knob hole; coupon picks 7.2 or 7.5 |
 | Encoder body (`ENCODER_BODY`, `ENCODER_BODY_HEIGHT`) | 13.4 x 12.5, 6.5 mm | Body size and plate-to-PCB height | Clearance |
 | NeoKey stack below the plate (`KEY_STACK_DEPTH`, `NEOKEY_PCB_THICKNESS`) | 13.0 mm, 1.6 mm | Plate top to the lowest wire with a switch fitted | Front clearance |
@@ -220,10 +237,10 @@ Everything here comes from a guess, a typical value, or a reading of a drawing t
 
 - **No SendCutSend upload or quote**: price, and whether the bend preview accepts the four-bend cover (see the open risk above).
 - The fit is checked against stand-ins built from the dimensions above, not real parts; nothing has been built or printed.
-- **The module is located sideways only by the cradle's foam and pressure.** The face's window does not grip the glass, and there is no room for a locating rim on the left (the USB plugs) or the front (the speaker and light holders). If it shifts, add tabs on the cradle's right and back edges.
+- **The locating tabs are fitted only in the model.** They assume the glass is the module's outermost edge from the face down to 0.8 mm below it; whether the tabs' slots hold them with a drop of glue is untested.
 - The holders are bonded under the face; the bond's strength on anodized aluminum is untested.
 - USB high speed through the 6153's unshielded lead and the 4090: the link runs at 480 Mbit/s over about 20 cm of hand-soldered wire and two extra connectors. Short runs like this usually work, but it is untested. Keep the lead short and twist the white and blue wires together.
 - The 6370 ribbon is modelled as its plug heads and its straight drop beside the module; its turn to the breakout and the jack's lead are simplified.
 - Wire routing inside the case is not modelled beyond the jumper plugs at the header (the wires to the parts, the LED and speaker leads). The boxed speaker's lead length is not published.
 - **Whether the board powers on by itself from USB.** Its POWER button drives a power latch and is out of reach in the closed case.
-- **No printed test enclosure.** The old one was built around face screws, and option C has none; the parts are fitted on the bench instead, and the anodized coupon checks the holes. A printed copy of the cover and base would be a separate design.
+- **The printed test enclosure has not been printed.** How well the face-down cover's flanges come off their supports, and how true the 3 mm walls print, are untested.

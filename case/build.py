@@ -43,9 +43,12 @@ def to_print_bed(shape):
 def stl_parts():
     return {
         "print_cradle": printed.cradle_for_print(),
+        "print_cradle_tab": printed.cradle_tab_for_print(),  # 5 needed
         "print_light_holder": printed.light_holder(),  # open side down, so the diffuser bridges
         "print_speaker_holder": printed.speaker_holder(),
         "print_mx_coupon": printed.coupon(layout.coupon()),
+        "print_test_cover": printed.cover_for_print(),
+        "print_test_base": printed.printed_base(),
     }
 
 
@@ -102,12 +105,16 @@ def main():
         bb = shape.BoundingBox()
         cq.exporters.export(shape, str(OUT / "stl" / f"{name}.stl"), tolerance=0.05, angularTolerance=0.2)
         report.append(f"{name}.stl: {bb.xlen:.1f} x {bb.ylen:.1f} x {bb.zlen:.1f} mm")
+        if max(bb.xlen, bb.ylen) > P.PRINT_BED:
+            report.append(f"    FAIL {name} does not fit a {P.PRINT_BED:.0f} mm bed")
+            failed = True
 
     report.append("\n# Interference (parts that overlap by more than 0.01 cubic mm)\n")
     items = assembly.metal_items()
     builds = {
         "metal": items,
         f"metal with {P.ALU_KEYCAP_MAX[0]:.1f} x {P.ALU_KEYCAP_MAX[1]:.1f} mm aluminum caps": assembly.metal_items(keycap=P.ALU_KEYCAP_MAX),
+        "printed test enclosure": assembly.printed_items(),
     }
     for name, build in builds.items():
         hits = assembly.interference(build)

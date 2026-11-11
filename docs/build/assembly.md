@@ -113,9 +113,9 @@ Then live with it on the bench for a week, in dry run first and `--live` once it
 
 ## Phase 2: printed parts and measurements
 
-Goal: the four printed parts made, every bought part fitted to them on the bench, and the case's assumptions measured before any metal is ordered. Files are in [`case/out/stl/`](../../case/out/stl/); details in [`case/README.md`](../../case/README.md#printed-parts).
+Goal: the printed parts made, the whole deck fitted in the printed test enclosure, and the case's assumptions measured before any metal is ordered. Files are in [`case/out/stl/`](../../case/out/stl/); details in [`case/README.md`](../../case/README.md#printed-parts).
 
-Option C has no printed test enclosure: the old one was built around face screws, and this case has none. The parts that matter for fit (the switches and the encoder in their holes) are checked on the coupon, and the rest is measured on the bench.
+The printed test enclosure is a printed copy of the metal cover and base: the same outside, holes and mounting positions, with thicker walls and heat-set inserts where the metal has its flange nuts ([case/README.md](../../case/README.md#printed-test-enclosure)). Every part inside sits where it does in the metal case, so the cradle, holders and wiring move straight across to the metal case later.
 
 ### 2.1 Print the coupon
 
@@ -126,13 +126,22 @@ Option C has no printed test enclosure: the old one was built around face screws
 | STL | Qty | Orientation | Supports | Material |
 | --- | --- | --- | --- | --- |
 | `print_cradle.stl` | 1 | Module side down, as exported (the legs lean 15 degrees) | None | PETG |
+| `print_cradle_tab.stl` | 5 | Glass side down, as exported | None | PETG |
 | `print_light_holder.stl` | 1 | Open side down, as exported (the diffuser bridges 10.6 mm) | None | **White or natural** PETG |
 | `print_speaker_holder.stl` | 1 | Flat, as exported | None | PETG |
+| `print_test_cover.stl` | 1 | Face down, as exported | **Under the two bottom flanges only** | PETG |
+| `print_test_base.stl` | 1 | Floor down, as exported | None | PETG |
 
 - 0.2 mm layers, 3 walls, 20 percent infill. PETG because the module and backlight run warm.
 - Heat-set an M3 insert into the bottom of each cradle leg with a soldering iron. The holes are 4.0 mm (`PRINT_INSERT_D`); check what your inserts want.
+- Heat-set an M3 x 4 insert into each of the six holes in the test cover's bottom flanges, from below, flush with the flange's underside. The flanges are 4.4 mm thick, so the insert must be no longer than that.
+- Push each of the five locating tabs into its slot in the cradle's arms from the top, glass side toward the middle, until its shoulder sits on the arm, with a drop of CA glue.
 
-### 2.3 Measure before ordering metal
+### 2.3 Fit the deck in the printed test enclosure
+
+Assemble it as the metal case in 3.5, steps 1 to 10, with the printed cover and base in place of the metal ones: the cradle on four M3 x 6 screws up through the printed floor, the switches, encoder, light holder, speaker holder and back jack in the printed cover, the module in the cradle's tabs, and the cover closed with six M3 x 6 screws into its flange inserts. The holders can be held with VHB tape here, so they come off cleanly for the metal cover. Then check what the model cannot: that the switches clip in firmly, the encoder's nut and the knob clear each other, the light bar reads through its window, the glass sits against the face without bowing and does not slide, the speaker is sealed under its slots, and both USB-C cables plug in (the flashing cable through the service slot). Use the deck in it for a while.
+
+### 2.4 Measure before ordering metal
 
 `case/README.md` lists every dimension that is a guess. Measure each on the real parts and change `params.py` where a value is off:
 
@@ -152,7 +161,7 @@ Option C has no printed test enclosure: the old one was built around face screws
 | Your flashing cable's plug body | `USB_PLUG_OVERMOLD` | 12.35 x 6.5 mm |
 | How far the 6370 ribbon's plug head stands out of the port | `RIBBON_PLUG_HEAD` | 3.5 mm (head 12 x 7.3 mm) |
 
-### 2.4 Rebuild the case files (only if you changed a parameter)
+### 2.5 Rebuild the case files (only if you changed a parameter)
 
 ```sh
 uv venv --python 3.12 case/.venv
@@ -179,7 +188,7 @@ The printed coupon does not predict laser-cut holes, and the 14 mm key hole need
 | Finish | Deburred, **black anodized** |
 | Hardware | None |
 
-Fit a switch in each key hole (13.95 to 14.10, by the dots) and the encoder bushing in each knob hole (7.2, 7.5). Set `KEY_HOLE` and `ENCODER_HOLE` to the holes that fit, and rebuild (2.4). SendCutSend's pricing page offers free US shipping from $39; what checkout does with a smaller order is unverified, so a coupon-only order may cost more than its parts.
+Fit a switch in each key hole (13.95 to 14.10, by the dots) and the encoder bushing in each knob hole (7.2, 7.5). Set `KEY_HOLE` and `ENCODER_HOLE` to the holes that fit, and rebuild (2.5). SendCutSend's pricing page offers free US shipping from $39; what checkout does with a smaller order is unverified, so a coupon-only order may cost more than its parts.
 
 ### 3.2 Order 2: the case
 
@@ -209,14 +218,14 @@ Move the breadboard wiring onto the Perma-Proto board: one strip for 5V and one 
 
 The cover carries everything on the face; the base carries the board. Wires join them, so leave enough slack (about 100 mm) to set the cover down beside the base while you work.
 
-1. **Cradle:** stick a pad of the 1.6 mm adhesive foam on the cradle's top. Screw the cradle to the base's floor with 4 M3 x 6 screws up through the floor into its leg inserts.
+1. **Cradle:** check the five locating tabs are in their slots (2.2), and stick a pad of the 1.6 mm adhesive foam on the cradle's top. Screw the cradle to the base's floor with 4 M3 x 6 screws up through the floor into its leg inserts.
 2. **Breakout:** stick the Adafruit 4090 to the floor with foam tape under where the module's left half will sit, about 66 mm from the front and 12 mm from the left wall, receptacle toward the left wall.
 3. **Keys:** from the front of the cover, press each switch into its hole. From inside, push each NeoKey onto its switch's pins; the boards hang from the switches. Keep the order YES, LATER, HOLD, SHOW ME from left to right. Fit the caps.
 4. **Knob:** take the nut off the encoder's bushing, push the bushing up through the knob hole from inside, and tighten the nut on the face. The encoder board hangs from it. Fit the knob; its skirt covers the nut.
 5. **Light bar:** set the NeoPixel Stick in the light holder, LEDs toward the diffuser, **DIN end toward the keys** (to the left). Seat the holder's tongue in the 49 x 6 mm window from inside and bond the holder to the face's underside (VHB tape or epoxy).
 6. **Speaker:** set the board's boxed speaker in the speaker holder and bond the holder under the slots, centred on them.
 7. **Back jack:** cut the JST plug off the Adafruit 6153 jack's lead, leaving about 80 mm of wire. From outside, feed the lead in through the hole low in the cover's back wall, seat the jack with its flange outside, and tighten its nut inside, slot horizontal. Solder red to the breakout's VBUS, black to GND, white to D-, and blue to D+; insulate the green and yellow (CC) wires and leave them unconnected. Twist the white and blue wires together.
-8. **Module:** set it face up on the cradle with its **USB-C edge toward the left wall** (the service slot). Plug the Adafruit 6370 ribbon into the breakout and into the board's **native USB port** ("USB", the receptacle nearer the back), with the ribbon running down from the plug.
+8. **Module:** set it face up on the cradle, between the locating tabs, with its **USB-C edge toward the left wall** (the service slot). Plug the Adafruit 6370 ribbon into the breakout and into the board's **native USB port** ("USB", the receptacle nearer the back), with the ribbon running down from the plug.
 9. **Wiring:** plug the jumpers into the header from below ([wiring.md](wiring.md#wiring-table)) and the speaker into SPK. **Before closing**, plug in "USB" and check the board starts by itself ([wiring.md check 5](wiring.md#verify-on-the-real-board)): POWER is on the module's front edge, out of reach once the cover is on.
 10. **Close:** lower the cover over the module between the base's side walls. The glass meets the underside of the face and the foam takes up the rest. Drive 6 M3 x 6 screws up through the base into the cover's flange nuts. Stick 4 feet under the base, clear of the screw heads.
 11. Plug the Mac's cable into the back jack, and a cable into the flashing port through the left wall's service slot when flashing. Check the deck enumerates through the jack ([wiring.md check 15](wiring.md#verify-on-the-real-board)), the picture is upright, and touch lands under the finger.
