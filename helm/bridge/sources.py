@@ -153,6 +153,15 @@ def read_meta(home: Path, task_id: str) -> dict:
     return meta
 
 
+def task_metas(home: Path) -> dict[str, dict]:
+    """Every state/<id>.meta in a home, by task id: firstmate's record of which tasks exist."""
+    try:
+        names = [p.name[: -len(".meta")] for p in (home / "state").glob("*.meta")]
+    except OSError:
+        return {}
+    return {task: read_meta(home, task) for task in names if safe_task_id(task)}
+
+
 def status_tail(home: Path, task_id: str) -> list[str]:
     """The last 64 KiB of state/<id>.status as lines, oldest first; empty when absent or the id is unsafe."""
     if not safe_task_id(task_id):

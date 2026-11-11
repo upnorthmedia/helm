@@ -40,9 +40,11 @@ class Link:
     firstmate_can_receive: Optional[bool]
     posture: Optional[str]
     stale_reason: Optional[str]
-    # Firstmate's posture is away or quiet: the deck mutes chimes and locks
-    # YES, LATER, and HOLD; SHOW ME still works. The bridge also drops those
-    # actions from every item, so a device that predates this field locks too.
+    # Firstmate's posture is away: the deck mutes chimes and locks YES, LATER,
+    # and HOLD; SHOW ME still works. The bridge also drops those actions from
+    # every item, so a device that predates this field locks too. In quiet
+    # mode this stays false (firstmate treats a quiet captain as present);
+    # the bridge mutes by sending no chime.
     away: bool = False
     # The Mac's login session is locked (or switched to another user): the
     # deck locks every key, SHOW ME included, since nobody should approve or

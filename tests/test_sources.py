@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from helm.bridge.sources import (
-    JsonFile, LedgerTail, discover_homes, parse_herdr_agents, parse_ready, read_meta, status_line_epoch,
+    JsonFile, LedgerTail, discover_homes, parse_herdr_agents, parse_ready, read_meta, status_line_epoch, task_metas,
 )
 from tests.helpers import make_homes
 
@@ -40,10 +40,18 @@ class SourcesTest(unittest.TestCase):
         reader = JsonFile(self.primary / "state" / "home-summary.json")
         self.assertTrue(reader.poll())
         self.assertFalse(reader.poll())
-        self.assertEqual(reader.data["counts"]["queued"], 4)
+        self.assertEqual(reader.data["counts"]["queued"], 3)
         missing = JsonFile(self.tmp / "nope.json")
         missing.poll()
         self.assertEqual(missing.error, "missing")
+
+    def test_task_metas_lists_every_task_in_a_home(self):
+        (self.primary / "state" / "..bad.meta").write_text("kind=ship\n")
+        metas = task_metas(self.primary)
+        self.assertEqual(set(metas), {"alpha-fix", "beta-port", "delta-docs", "eta-sync", "mate1", "omega-ci",
+                                      "theta-cut"})
+        self.assertEqual(metas["mate1"]["kind"], "secondmate")
+        self.assertEqual(task_metas(self.tmp / "nowhere"), {})
 
     def test_ledger_tail_skips_history_and_follows_appends(self):
         path = self.primary / "state" / "fleet-ledger.jsonl"
