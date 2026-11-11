@@ -1,0 +1,42 @@
+name: Build question
+description: A question about parts, wiring, the case, flashing, or assembly
+labels: ["build"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The build guides are in docs/build/ (bill of materials, wiring, assembly), the case in case/README.md, and flashing in firmware/idf/README.md. If one of them is wrong or unclear, say which line.
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Stage
+      options:
+        - Parts and ordering
+        - Wiring
+        - Case (SendCutSend, printing, engraving)
+        - Flashing the firmware
+        - Assembly
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What you are trying to do and where you are stuck.
+    validations:
+      required: true
+
+  - type: input
+    id: doc
+    attributes:
+      label: Which document and section
+      placeholder: docs/build/wiring.md, "Knob"
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Photos or anything else
+      description: Photos of the wiring or parts help. Crop out anything private.

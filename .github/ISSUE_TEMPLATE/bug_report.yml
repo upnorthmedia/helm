@@ -1,0 +1,66 @@
+name: Bug report
+description: Something in the bridge, simulator, firmware, or case does not work as documented
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. This repository is public: leave out home directory paths, email addresses, tokens, and anything private from your firstmate home. Report security problems privately (see SECURITY.md), not here.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Bridge (helm/bridge)
+        - Simulator (sim)
+        - Wire or contract (helm/wire, helm/contract.py)
+        - Firmware core (firmware/core)
+        - ESP-IDF firmware (firmware/idf)
+        - Case (case)
+        - Docs
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: The commands you ran, with any flags, and what was on the deck or simulator screen.
+      placeholder: |
+        1. python3 -m sim
+        2. python3 -m helm.bridge --port /dev/ttys012
+        3. Hold YES on a PR item
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Helm commit
+      description: Output of `git rev-parse --short HEAD` in your checkout.
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: Mac and Python
+      description: macOS version and `python3 --version`.
+      placeholder: macOS 15.5, Python 3.12.4
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Bridge log or test output
+      description: The relevant lines only. Check them for private paths and names first.
+      render: text
