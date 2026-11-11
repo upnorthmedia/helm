@@ -221,7 +221,7 @@ class BridgeTest(unittest.TestCase):
         ref = "decision|primary|alpha-fix|merge-alpha-12"
         self.assertIn("focus", next(i for i in model.items if i.ref == ref).actions)
         self.bridge.handle(Select(ref), self.now)
-        self.bridge.handle(Key("focus", "up"), self.now)
+        self.bridge.handle(Key("focus", "up", ref), self.now)
         self.assertEqual(self.executor.dry_log, ["open https://github.com/example/alpha/pull/12"])
         self.assertEqual(self.advance(0.1).result.text, "dry run: PR for alpha-fix/merge-alpha-12 logged")
 
