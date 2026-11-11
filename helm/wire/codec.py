@@ -224,7 +224,8 @@ def _event_from(obj: dict[str, Any]) -> c.Event:
             raise DecodeError("caps must be strings")
         return c.Hello(fw=_get(obj, "fw", str), caps=list(caps), product=_get(obj, "product", str))
     if tag == "key":
-        return c.Key(key=_enum(obj, "key", ACTIONS), phase=_enum(obj, "phase", KEY_PHASES))
+        return c.Key(key=_enum(obj, "key", ACTIONS), phase=_enum(obj, "phase", KEY_PHASES),
+                     ref=_get(obj, "ref", str, optional=True))
     if tag == "knob":
         return c.Knob(delta=_get(obj, "delta", int))
     if tag == "knob_press":

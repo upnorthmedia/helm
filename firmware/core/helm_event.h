@@ -41,6 +41,7 @@ typedef struct {
         struct {
             helm_action_t key;
             helm_key_phase_t phase; /* held = the 1 s hold completed */
+            const char *ref;        /* the item the deck showed; NULL encodes null */
         } key;
         struct {
             int32_t delta;

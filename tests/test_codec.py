@@ -30,6 +30,7 @@ class Codec(unittest.TestCase):
             c.Key(key="yes", phase="down"),
             c.Key(key="later", phase="held"),
             c.Key(key="focus", phase="up"),
+            c.Key(key="yes", phase="held", ref="decision|main|demo-task|status-key"),
             c.Knob(delta=-3),
             c.KnobPress(long=True),
             c.Select(ref="pr:sample-org/gizmo#42"),
@@ -42,9 +43,15 @@ class Codec(unittest.TestCase):
 
     def test_event_wire_shape(self):
         self.assertEqual(
-            json.loads(_payload(codec.encode_event(c.Key(key="yes", phase="held")))),
-            {"t": "key", "key": "yes", "phase": "held"},
+            json.loads(_payload(codec.encode_event(c.Key(key="yes", phase="held", ref="pr:o/r#1")))),
+            {"t": "key", "key": "yes", "phase": "held", "ref": "pr:o/r#1"},
         )
+        self.assertEqual(
+            json.loads(_payload(codec.encode_event(c.Key(key="yes", phase="held")))),
+            {"t": "key", "key": "yes", "phase": "held", "ref": None},
+        )
+        # A deck from before Key.ref sends no ref at all; it decodes as None (and the bridge refuses it).
+        self.assertEqual(codec.decode_event(b'{"t":"key","key":"yes","phase":"held"}'), c.Key(key="yes", phase="held"))
         self.assertEqual(json.loads(_payload(codec.encode_event(c.Seen()))), {"t": "seen"})
         self.assertEqual(json.loads(_payload(codec.encode_event(c.Resync()))), {"t": "resync"})
 
@@ -60,6 +67,7 @@ class Codec(unittest.TestCase):
             b'{"no":"t"}',
             b'{"t":"key","key":"nuke","phase":"down"}',
             b'{"t":"key","key":"yes"}',
+            b'{"t":"key","key":"yes","phase":"held","ref":7}',
             b'{"t":"knob","delta":true}',
             b'{"t":"knob","delta":"3"}',
             b'{"t":"launch"}',

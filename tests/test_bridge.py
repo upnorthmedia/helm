@@ -9,6 +9,7 @@ from helm.bridge.bridge import Bridge
 from helm.bridge.intents import IntentExecutor
 from helm.bridge.usage import UsagePoller
 from helm.bridge.transports import MemoryTransport
+from sim.state import HOLD_S, Deck
 from tests.helpers import QUOTA_OK, FakeRunner, ioreg_root, lavish_listing, make_homes
 
 
@@ -111,7 +112,8 @@ class BridgeTest(unittest.TestCase):
     def test_held_yes_on_selected_item_is_one_dry_run_note(self):
         self.bridge.tick(self.now)
         ref = "decision|primary|alpha-fix|merge-alpha-12"
-        for event in (Hello("0.1", ["keys", "knob"]), Select(ref), Key("yes", "down"), Key("yes", "held"), Key("yes", "up")):
+        for event in (Hello("0.1", ["keys", "knob"]), Select(ref), Key("yes", "down", ref), Key("yes", "held", ref),
+                      Key("yes", "up", ref)):
             self.bridge.handle(event, self.now)
         model = self.advance(0.1)
         self.assertEqual(model.result.state, "queued")
@@ -120,25 +122,61 @@ class BridgeTest(unittest.TestCase):
         self.assertIn("held to confirm: YES on `alpha-fix` / `merge-alpha-12`", self.executor.dry_log[0])
         self.assertEqual(self.runner.calls_for("fm-inbox.sh", "note"), [])
 
+    def test_lost_select_does_not_turn_yes_onto_the_previous_item(self):
+        # A real deck (the simulator's) in front of the bridge, with one select frame lost on the way.
+        deck = Deck()
+        deck.on_model(self.bridge.tick(self.now), self.now)
+        deck.knob_press(False, self.now)  # open the list
+        deck.knob(1, self.now)  # gamma-choice: this select arrives
+        for event in deck.take_outbox():
+            self.bridge.handle(event, self.now)
+        deck.knob(1, self.now)  # widget-pricing: this select is lost
+        self.assertEqual(deck.selected_ref, "decision|primary|widget-pricing|widget-pricing")
+        dropped = deck.take_outbox()
+        self.assertIn(Select("decision|primary|widget-pricing|widget-pricing"), dropped)
+        deck.key_down("yes", self.now)
+        deck.tick(self.now + HOLD_S)
+        for event in deck.take_outbox():
+            self.bridge.handle(event, self.now)
+        self.assertEqual(len(self.executor.dry_log), 1)
+        self.assertIn("YES on `widget-pricing`", self.executor.dry_log[0])
+        self.assertNotIn("gamma-choice", self.executor.dry_log[0])
+
     def test_yes_is_refused_when_dark(self):
         self.bridge.tick(self.now)
         self.bridge.handle(Select("decision|primary|beta-port|merge-beta-7"), self.now)  # PR known red
-        self.bridge.handle(Key("yes", "held"), self.now)
+        self.bridge.handle(Key("yes", "held", "decision|primary|beta-port|merge-beta-7"), self.now)
         model = self.advance(0.1)
         self.assertEqual(model.result.state, "failed")
         self.assertEqual(self.executor.dry_log, [])
 
-    def test_nothing_selected(self):
+    def test_key_naming_no_item_is_refused_whatever_was_selected(self):
+        # A deck from before Key.ref sends keys with no ref: the last select is never used instead.
         self.bridge.tick(self.now)
+        self.bridge.handle(Select("decision|primary|alpha-fix|merge-alpha-12"), self.now)
         self.bridge.handle(Key("hold", "held"), self.now)
-        self.assertEqual(self.advance(0.1).result.text, "nothing selected")
+        self.assertEqual(self.advance(0.1).result.text, "key named no item: update the deck")
+        self.bridge.handle(Select("worker|primary|beta-port"), self.now)
+        self.bridge.handle(Key("focus", "up"), self.now)
+        self.assertEqual(self.advance(0.1).result.text, "key named no item: update the deck")
+        self.assertEqual(self.executor.dry_log, [])
+
+    def test_key_naming_a_gone_item_is_refused(self):
+        self.bridge.tick(self.now)
+        self.bridge.handle(Select("decision|primary|alpha-fix|merge-alpha-12"), self.now)
+        self.bridge.handle(Key("yes", "held", "decision|primary|omega|omega"), self.now)
+        result = self.advance(0.1).result
+        self.assertEqual((result.state, result.text), ("failed", "that item is gone"))
+        self.bridge.handle(Key("focus", "up", "decision|primary|omega|omega"), self.now)
+        self.assertEqual(self.advance(0.1).result.text, "that item is gone")
+        self.assertEqual(self.executor.dry_log, [])
 
     def test_show_me_focuses_the_pane_on_tap(self):
         self.bridge.tick(self.now)
         self.bridge.handle(Select("worker|primary|beta-port"), self.now)
-        self.bridge.handle(Key("focus", "down"), self.now)
+        self.bridge.handle(Key("focus", "down", "worker|primary|beta-port"), self.now)
         self.assertEqual(self.executor.dry_log, [])
-        self.bridge.handle(Key("focus", "up"), self.now)
+        self.bridge.handle(Key("focus", "up", "worker|primary|beta-port"), self.now)
         self.assertEqual(self.executor.dry_log, ["herdr agent focus wB:p1"])
         self.assertEqual(self.runner.calls_for("herdr", "agent", "focus"), [])
 
@@ -148,7 +186,7 @@ class BridgeTest(unittest.TestCase):
         report.write_text("# Widget pricing\n")
         self.bridge.tick(self.now)
         self.bridge.handle(Select("decision|primary|widget-pricing|widget-pricing"), self.now)
-        self.bridge.handle(Key("focus", "up"), self.now)
+        self.bridge.handle(Key("focus", "up", "decision|primary|widget-pricing|widget-pricing"), self.now)
         page = self.cache / "reports" / "primary-widget-pricing-report.html"
         self.assertEqual(self.executor.dry_log, ["herdr agent focus w0:p1", "lavish-axi %s --reopen --no-gate" % page])
         self.assertEqual(self.advance(0.1).result.text, "dry run: report for widget-pricing logged")
@@ -164,7 +202,7 @@ class BridgeTest(unittest.TestCase):
                                          "summary": "Pick a case, live board http://deck-mac.example.ts.net:4387/session/%s" % sid})
         self.bridge.tick(self.now)
         self.bridge.handle(Select("decision|primary|case-pick|case-pick"), self.now)
-        self.bridge.handle(Key("focus", "up"), self.now)
+        self.bridge.handle(Key("focus", "up", "decision|primary|case-pick|case-pick"), self.now)
         self.assertEqual(self.runner.calls_for("herdr", "agent", "focus"), [["herdr", "agent", "focus", "w0:p1"]])
         self.assertEqual(self.runner.calls_for("open", "<url>"), [["open", "http://127.0.0.1:4387/session/%s" % sid]])
         self.assertEqual(self.advance(0.1).result.text, "opening board for case-pick")
@@ -172,7 +210,7 @@ class BridgeTest(unittest.TestCase):
     def test_show_me_opens_the_pr_when_there_is_nothing_else(self):
         self.bridge.tick(self.now)
         self.bridge.handle(Select("decision|primary|alpha-fix|merge-alpha-12"), self.now)
-        self.bridge.handle(Key("focus", "up"), self.now)
+        self.bridge.handle(Key("focus", "up", "decision|primary|alpha-fix|merge-alpha-12"), self.now)
         self.assertEqual(self.executor.dry_log, ["herdr agent focus w0:p1", "open https://github.com/example/alpha/pull/12"])
         self.assertEqual(self.advance(0.1).result.text, "dry run: PR for alpha-fix/merge-alpha-12 logged")
 
@@ -183,7 +221,7 @@ class BridgeTest(unittest.TestCase):
         self.bridge.tick(self.now)
         self.bridge.handle(Select("decision|primary|alpha-fix|merge-alpha-12"), self.now)
         with self.assertLogs("helm.bridge.intents", "WARNING"):
-            self.bridge.handle(Key("focus", "up"), self.now)
+            self.bridge.handle(Key("focus", "up", "decision|primary|alpha-fix|merge-alpha-12"), self.now)
         result = self.advance(0.1).result
         self.assertEqual((result.state, result.text), ("failed", "PR for alpha-fix/merge-alpha-12 did not open; pane focused"))
 
@@ -192,7 +230,7 @@ class BridgeTest(unittest.TestCase):
         self.executor.dry_run = False
         self.bridge.tick(self.now)
         self.bridge.handle(Select("decision|primary|widget-pricing|widget-pricing"), self.now)
-        self.bridge.handle(Key("later", "held"), self.now)
+        self.bridge.handle(Key("later", "held", "decision|primary|widget-pricing|widget-pricing"), self.now)
         self.assertEqual(self.advance(0.1).result.state, "queued")
         self.runner.receipts["handled"] = [{"id": "note-1", "reply": {"body": "Re-held until tomorrow."}}]
         model = self.advance(5)
@@ -272,12 +310,12 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual((model.attention, model.unseen, model.chime), ("new", 1, False))
 
         self.bridge.handle(Select("decision|primary|alpha-fix|merge-alpha-12"), self.now)
-        self.bridge.handle(Key("yes", "held"), self.now)
+        self.bridge.handle(Key("yes", "held", "decision|primary|alpha-fix|merge-alpha-12"), self.now)
         model = self.advance(0.1)
         self.assertEqual((model.result.state, model.result.text), ("failed", "keys locked: firstmate is away"))
         self.assertEqual(self.executor.dry_log, [])
         self.bridge.handle(Select("worker|primary|beta-port"), self.now)
-        self.bridge.handle(Key("focus", "up"), self.now)
+        self.bridge.handle(Key("focus", "up", "worker|primary|beta-port"), self.now)
         self.assertEqual(self.executor.dry_log, ["herdr agent focus wB:p1"])  # SHOW ME still works
 
     def test_quiet_counts_as_away_and_return_does_not_ring_late(self):
@@ -311,13 +349,14 @@ class BridgeTest(unittest.TestCase):
         self.assertTrue(all(i.actions == [] for i in model.items))  # SHOW ME too
 
         self.bridge.handle(Select("decision|primary|alpha-fix|merge-alpha-12"), self.now)
-        self.bridge.handle(Key("yes", "held"), self.now)
+        self.bridge.handle(Key("yes", "held", "decision|primary|alpha-fix|merge-alpha-12"), self.now)
         model = self.advance(0.1)
         self.assertEqual((model.result.state, model.result.text), ("failed", "keys locked: the Mac is locked"))
         self.bridge.handle(Select("worker|primary|beta-port"), self.now)
-        self.bridge.handle(Key("focus", "up"), self.now)
+        self.bridge.handle(Key("focus", "up", "worker|primary|beta-port"), self.now)
         self.bridge.handle(Select("decision|primary|alpha-fix|merge-alpha-12"), self.now)
-        self.bridge.handle(Key("focus", "up"), self.now)  # has a PR to open, but nothing opens either
+        # Has a PR to open, but nothing opens either.
+        self.bridge.handle(Key("focus", "up", "decision|primary|alpha-fix|merge-alpha-12"), self.now)
         self.assertEqual(self.executor.dry_log, [])
         self.assertEqual(self.runner.calls_for("lavish-axi"), [])
 
@@ -330,8 +369,8 @@ class BridgeTest(unittest.TestCase):
         self.bridge.tick(self.now)
         self.bridge.handle(Select("decision|primary|alpha-fix|merge-alpha-12"), self.now)
         self.runner.ioreg = ioreg_root(locked=True)  # locked since the last poll
-        self.bridge.handle(Key("yes", "held"), self.now + 0.5)
-        self.bridge.handle(Key("focus", "up"), self.now + 0.6)
+        self.bridge.handle(Key("yes", "held", "decision|primary|alpha-fix|merge-alpha-12"), self.now + 0.5)
+        self.bridge.handle(Key("focus", "up", "decision|primary|alpha-fix|merge-alpha-12"), self.now + 0.6)
         self.assertEqual(self.executor.dry_log, [])
         self.assertEqual(self.bridge.result.text, "keys locked: the Mac is locked")
         self.assertTrue(self.advance(0.7).link.mac_locked)

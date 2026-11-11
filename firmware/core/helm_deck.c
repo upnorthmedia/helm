@@ -22,13 +22,16 @@ static void emit_simple(helm_deck_t *deck, helm_event_type_t type)
     emit(deck, &event);
 }
 
-static void emit_key(helm_deck_t *deck, helm_action_t key, helm_key_phase_t phase)
+/* `ref` names the item the deck showed: the bridge acts on it alone, never on
+ * the last select, which may have been lost. */
+static void emit_key(helm_deck_t *deck, helm_action_t key, helm_key_phase_t phase, const char *ref)
 {
     helm_event_t event;
     memset(&event, 0, sizeof event);
     event.type = HELM_EVENT_KEY;
     event.u.key.key = key;
     event.u.key.phase = phase;
+    event.u.key.ref = ref;
     emit(deck, &event);
 }
 
@@ -78,6 +81,11 @@ const helm_item_t *helm_deck_selected(const helm_deck_t *deck)
         return NULL;
     }
     return &m->items[deck->selected];
+}
+
+static const char *selected_ref(const helm_deck_t *deck)
+{
+    return helm_deck_selected(deck) != NULL ? item_ref(helm_deck_model(deck), deck->selected) : NULL;
 }
 
 /* Project views */
@@ -313,12 +321,13 @@ static void on_model(helm_deck_t *deck, uint32_t now)
         deck->view[0] = '\0';
     }
 
-    /* Selection follows the ref, not the row, across a reorder, while it stays in the view. */
+    /* Selection follows the ref, not the row, across a reorder, while it stays in the view.
+     * prev_ref points into the previous model, which stays intact until the next frame. */
     int selected = -1;
-    if (prev != NULL && helm_deck_selected(deck) != NULL) {
-        const char *ref = item_ref(prev, deck->selected);
+    const char *prev_ref = selected_ref(deck);
+    if (prev_ref != NULL) {
         for (int i = 0; i < m->item_count; i++) {
-            if (strcmp(item_ref(m, i), ref) == 0 && in_view_of(m, deck->view, i)) {
+            if (strcmp(item_ref(m, i), prev_ref) == 0 && in_view_of(m, deck->view, i)) {
                 selected = i;
                 break;
             }
@@ -349,7 +358,7 @@ static void on_model(helm_deck_t *deck, uint32_t now)
     if (deck->holding && (selected < 0 || m->link.away || m->link.mac_locked)) {
         deck->holding = false;
         deck->screen = deck->hold_return;
-        emit_key(deck, deck->hold_key, HELM_KEY_UP);
+        emit_key(deck, deck->hold_key, HELM_KEY_UP, prev_ref);
     }
     if (selected < 0) {
         int first = helm_deck_view_item(deck, 0);
@@ -460,7 +469,7 @@ void helm_deck_tick(helm_deck_t *deck, uint32_t now_ms)
         const helm_model_t *m = helm_deck_model(deck);
         const helm_item_t *item = helm_deck_selected(deck);
         deck->holding = false;
-        emit_key(deck, deck->hold_key, HELM_KEY_HELD);
+        emit_key(deck, deck->hold_key, HELM_KEY_HELD, selected_ref(deck));
         deck->pending = true;
         deck->pending_key = deck->hold_key;
         deck->pending_seq_after = m != NULL ? m->seq : -1;
@@ -617,7 +626,7 @@ void helm_deck_key_down(helm_deck_t *deck, helm_action_t key, uint32_t now_ms)
     if (deck->holding || !helm_deck_key_lit(deck, key, now_ms)) {
         return;
     }
-    emit_key(deck, key, HELM_KEY_DOWN);
+    emit_key(deck, key, HELM_KEY_DOWN, selected_ref(deck));
     if (key != HELM_ACTION_FOCUS) {
         deck->holding = true;
         deck->hold_key = key;
@@ -632,7 +641,7 @@ void helm_deck_key_up(helm_deck_t *deck, helm_action_t key, uint32_t now_ms)
     if (key == HELM_ACTION_FOCUS) {
         /* SHOW ME is a tap. */
         if (!deck->holding && helm_deck_key_lit(deck, HELM_ACTION_FOCUS, now_ms)) {
-            emit_key(deck, HELM_ACTION_FOCUS, HELM_KEY_UP);
+            emit_key(deck, HELM_ACTION_FOCUS, HELM_KEY_UP, selected_ref(deck));
         }
         return;
     }
@@ -642,7 +651,7 @@ void helm_deck_key_up(helm_deck_t *deck, helm_action_t key, uint32_t now_ms)
     /* Released before the fill bar completed: nothing is sent but the up. */
     deck->holding = false;
     deck->screen = deck->hold_return;
-    emit_key(deck, key, HELM_KEY_UP);
+    emit_key(deck, key, HELM_KEY_UP, selected_ref(deck));
 }
 
 void helm_deck_init(helm_deck_t *deck, const helm_deck_config_t *cfg)

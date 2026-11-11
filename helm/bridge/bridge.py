@@ -79,7 +79,6 @@ class Bridge:
         self.herdr_error: Optional[str] = None
         self.candidates: dict[str, Candidate] = {}
         self.counts = Counts()
-        self.selected: Optional[str] = None
         self.result: Optional[Result] = None
         self.result_at = 0.0
         self.seq = 0
@@ -256,12 +255,12 @@ class Bridge:
             return
         # Any touch on the deck marks new items as seen (D2).
         self.attention.mark_all_seen()
-        if isinstance(event, Select):
-            self.selected = event.ref
-        elif isinstance(event, Key):
+        if isinstance(event, Key):
             self._handle_key(event, now)
-        elif isinstance(event, (Knob, KnobPress, Seen)):
-            pass  # scrolling, opening detail, and mute are the device's own business
+        elif isinstance(event, (Select, Knob, KnobPress, Seen)):
+            # Scrolling, selecting, opening detail, and mute are the device's own
+            # business. A key names its own item, so a select is never acted on.
+            pass
 
     def _mac_locked_now(self, now: float) -> bool:
         """Read the lock state again before acting, so a lock since the last poll still refuses."""
@@ -272,24 +271,36 @@ class Bridge:
             return True
         return False
 
+    def _key_item(self, event: Key, request_id: str, now: float) -> Optional[Candidate]:
+        """The live item the key names, or None after refusing.
+
+        Only the ref in the key counts: the last select may have been lost, and
+        acting on it would answer an item the deck was not showing.
+        """
+        if event.ref is None:
+            # A deck that predates Key.ref; a current one sends no key without an item.
+            self._set_result(Result(request_id, "failed", "key named no item: update the deck"), now)
+            return None
+        cand = self.candidates.get(event.ref)
+        if cand is None:
+            self._set_result(Result(request_id, "failed", "that item is gone"), now)
+        return cand
+
     def _handle_key(self, event: Key, now: float) -> None:
         if event.key == "focus":
             if event.phase != "up" or self._mac_locked_now(now):
                 return
-            cand = self.candidates.get(self.selected or "")
+            cand = self._key_item(event, "focus", now)
             if cand is not None:
                 self._show(cand, now)
-            else:
-                self._set_result(Result("focus", "failed", "nothing to show"), now)
             return
         if event.phase != "held" or self._mac_locked_now(now):
             return
         if self.away():
             self._set_result(Result("none", "failed", "keys locked: firstmate is %s" % self._posture()), now)
             return
-        cand = self.candidates.get(self.selected or "")
+        cand = self._key_item(event, "none", now)
         if cand is None:
-            self._set_result(Result("none", "failed", "nothing selected"), now)
             return
         if event.key not in cand.item.actions or cand.item.kind == "herdr_blocked":
             self._set_result(Result("none", "failed", "%s does not apply to %s" % (event.key.upper(), cand.item.short_id)), now)

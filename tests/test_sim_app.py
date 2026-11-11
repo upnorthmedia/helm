@@ -89,7 +89,7 @@ class SimOverWire(unittest.TestCase):
         sent = self.far.events
         self.assertIn(c.Seen(), sent)
         self.assertIn(c.Select(ref=fixtures.PR_READY.ref), sent)
-        self.assertIn(c.Key(key="yes", phase="held"), sent)
+        self.assertIn(c.Key(key="yes", phase="held", ref=fixtures.PR_READY.ref), sent)
         # The fake landed the PR: it left the list and the count went up.
         self.assertNotIn(fixtures.PR_READY.ref, [i.ref for i in deck.items])
         self.assertEqual(deck.model.counts.landed_today, 4)

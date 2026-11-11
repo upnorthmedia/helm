@@ -191,7 +191,8 @@ class FirmwareCoreCrossTest(unittest.TestCase):
         if isinstance(event, c.Hello):
             return " ".join(["event hello", h(event.fw), *(h(cap) for cap in event.caps)])
         if isinstance(event, c.Key):
-            return f"event key {event.key} {event.phase}"
+            ref = "" if event.ref is None else f" {h(event.ref)}"
+            return f"event key {event.key} {event.phase}{ref}"
         if isinstance(event, c.Knob):
             return f"event knob {event.delta}"
         if isinstance(event, c.KnobPress):
@@ -212,6 +213,9 @@ class FirmwareCoreCrossTest(unittest.TestCase):
             c.KnobPress(long=True),
         ]
         events += [c.Key(key=k, phase=p) for k in codec.ACTIONS for p in codec.KEY_PHASES]
+        events += [c.Key(key=k, phase=p, ref="pr:sample-org/gizmo#42") for k in codec.ACTIONS for p in codec.KEY_PHASES]
+        events += [c.Key(key="yes", phase="held", ref=s) for s in EDGE_STRINGS]
+        events += [c.Key(key="later", phase="held", ref=random_text(rng, 120)) for _ in range(100)]
         events += [c.Knob(delta=d) for d in (0, 1, -1, 7, -128, 2**31 - 1, -(2**31))]
         events += [c.Select(ref=s) for s in EDGE_STRINGS if s]
         events += [c.Select(ref=random_text(rng, 120) or "x") for _ in range(300)]

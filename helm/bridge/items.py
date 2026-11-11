@@ -1,6 +1,6 @@
 """Turn firstmate and herdr records into deck items and counts.
 
-Item refs are stable strings the device echoes back in `select`:
+Item refs are stable strings the device echoes back in `select` and `key`:
   decision|<home>|<task>|<key>   a row of decisions_open[]
   pr|<home>|<pr url>             a PR waiting on the captain
   worker|<home>|<task>           a blocked or failed worker

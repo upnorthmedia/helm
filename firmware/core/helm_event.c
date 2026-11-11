@@ -40,6 +40,12 @@ size_t helm_event_payload(const helm_event_t *event, uint8_t *out, size_t cap)
         helm_jsonw_string(&w, helm_action_name(event->u.key.key));
         helm_jsonw_raw(&w, ",\"phase\":");
         helm_jsonw_string(&w, helm_key_phase_name(event->u.key.phase));
+        helm_jsonw_raw(&w, ",\"ref\":");
+        if (event->u.key.ref != NULL) {
+            helm_jsonw_string(&w, event->u.key.ref);
+        } else {
+            helm_jsonw_raw(&w, "null");
+        }
         break;
     case HELM_EVENT_KNOB:
         helm_jsonw_raw(&w, ",\"delta\":");
