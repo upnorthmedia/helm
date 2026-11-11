@@ -145,6 +145,11 @@ jobs:
       - name: out/checks.txt matches the source
         if: steps.changes.outputs.changed == 'true'
         run: |
+          # git diff passes a file that is not tracked, so check that first.
+          git ls-files --error-unmatch case/out/checks.txt > /dev/null || {
+            echo "::error::case/out/checks.txt is not committed"
+            exit 1
+          }
           git diff --exit-code -- case/out/checks.txt || {
             echo "::error file=case/out/checks.txt::case/build.py wrote a different checks.txt; rebuild and commit case/out/"
             exit 1

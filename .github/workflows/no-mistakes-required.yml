@@ -2,9 +2,11 @@ name: Require no-mistakes
 run-name: "PR #${{ github.event.pull_request.number }} body compliance - ${{ github.event.action }} - event ${{ github.run_number }} (run ${{ github.run_id }})"
 
 # Pull requests to main must be raised through no-mistakes
-# (https://github.com/kunchenguid/no-mistakes), which writes a signed pipeline
-# attestation into the PR body. The repository owner is exempt and ships
-# directly; see CONTRIBUTING.md.
+# (https://github.com/kunchenguid/no-mistakes), which writes a signature line
+# and a pipeline attestation into the PR body. The check is structural, a
+# contributor guardrail and not proof that the pipeline ran: an author can
+# edit their own PR body. The repository owner is exempt and ships directly;
+# see CONTRIBUTING.md.
 
 on:
   pull_request:
