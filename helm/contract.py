@@ -5,9 +5,15 @@ changes. The device sends Events back. Neither side depends on how the other
 moves bytes: that is the Transport's job.
 
 Fields added after the first release (Link.away, Link.mac_locked,
-Item.project, Model.usage, Model.context) have defaults, and both decoders (helm/wire/codec.py and firmware/core) treat
+Item.project, Model.usage, Model.context, Key.ref) have defaults, and both decoders (helm/wire/codec.py and firmware/core) treat
 them as optional, so a newer bridge and an older device, or the reverse, still
-work together: a device skips keys it does not know.
+work together: each side skips JSON keys it does not know.
+
+One exception is deliberate. Key.ref names the item the deck showed, and the
+bridge acts only on that ref, never on the last `select` it received (a lost
+`select` frame would turn a held YES onto another item). So a deck from before
+Key.ref still shows models and still sends keys, but every answer key and SHOW
+ME it sends is refused until its firmware is updated.
 """
 
 from __future__ import annotations
@@ -57,7 +63,7 @@ class Counts:
 
 @dataclass
 class Item:
-    ref: str  # stable id the bridge understands; the device echoes it in `select`
+    ref: str  # stable id the bridge understands; the device echoes it in `select` and `key`
     kind: ItemKind
     color: Color
     short_id: str
@@ -157,6 +163,10 @@ class Hello:
 class Key:
     key: KeyName
     phase: KeyPhase  # held = the 1 s hold completed
+    # The ref of the item the deck showed for this key (the selection, or the
+    # held item), or None when nothing was selected. The bridge acts on this
+    # ref only, so a lost `select` cannot move an answer onto another item.
+    ref: Optional[str] = None
 
 
 @dataclass

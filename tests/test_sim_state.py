@@ -144,7 +144,7 @@ class AwayMode(unittest.TestCase):
         self.assertEqual(deck.screen, "home")
         deck.key_down("focus", T + 2)
         deck.key_up("focus", T + 2.1)
-        self.assertEqual(deck.take_outbox(), [c.Seen(), c.Key(key="focus", phase="down"), c.Key(key="focus", phase="up")])
+        self.assertEqual(deck.take_outbox(), [c.Seen(), c.Key(key="focus", phase="down", ref=fixtures.DECISION.ref), c.Key(key="focus", phase="up", ref=fixtures.DECISION.ref)])
 
     def test_going_away_mid_hold_cancels_it(self):
         deck = Deck()
@@ -154,7 +154,7 @@ class AwayMode(unittest.TestCase):
         deck.on_model(self.away_model(2), T + 0.5)
         self.assertIsNone(deck.hold)
         self.assertEqual(deck.screen, "home")
-        self.assertEqual(deck.take_outbox(), [c.Key(key="yes", phase="up")])
+        self.assertEqual(deck.take_outbox(), [c.Key(key="yes", phase="up", ref=fixtures.DECISION.ref)])
         deck.tick(T + 2)
         self.assertIsNone(deck.pending)
 
@@ -183,7 +183,7 @@ class AwayMode(unittest.TestCase):
         locked.link = fixtures.LINK_LOCKED
         deck.on_model(locked, T + 0.5)
         self.assertIsNone(deck.hold)
-        self.assertEqual(deck.take_outbox(), [c.Key(key="yes", phase="up")])
+        self.assertEqual(deck.take_outbox(), [c.Key(key="yes", phase="up", ref=fixtures.DECISION.ref)])
 
 
 class HoldToConfirm(unittest.TestCase):
@@ -197,7 +197,7 @@ class HoldToConfirm(unittest.TestCase):
         deck.tick(T + HOLD_S)
         self.assertEqual(deck.screen, "result")
         out = deck.take_outbox()
-        self.assertEqual(out[-2:], [c.Key(key="yes", phase="down"), c.Key(key="yes", phase="held")])
+        self.assertEqual(out[-2:], [c.Key(key="yes", phase="down", ref=fixtures.DECISION.ref), c.Key(key="yes", phase="held", ref=fixtures.DECISION.ref)])
         deck.key_up("yes", T + HOLD_S + 0.1)  # the release after a completed hold sends nothing
         self.assertEqual(deck.take_outbox(), [])
 
@@ -210,7 +210,7 @@ class HoldToConfirm(unittest.TestCase):
         deck.key_up("later", T + 0.5)
         deck.tick(T + 2)
         self.assertEqual(deck.screen, "list")
-        self.assertEqual(deck.take_outbox(), [c.Key(key="later", phase="down"), c.Key(key="later", phase="up")])
+        self.assertEqual(deck.take_outbox(), [c.Key(key="later", phase="down", ref=fixtures.DECISION.ref), c.Key(key="later", phase="up", ref=fixtures.DECISION.ref)])
 
     def test_hold_targets_item_selected_at_press(self):
         deck = busy_deck()
@@ -233,7 +233,7 @@ class HoldToConfirm(unittest.TestCase):
         self.assertEqual(deck.screen, "home")
         self.assertEqual(
             deck.take_outbox(),
-            [c.Seen(), c.Key(key="yes", phase="down"), c.Key(key="yes", phase="up"), c.Select(ref=fixtures.PR_READY.ref)],
+            [c.Seen(), c.Key(key="yes", phase="down", ref=fixtures.DECISION.ref), c.Key(key="yes", phase="up", ref=fixtures.DECISION.ref), c.Select(ref=fixtures.PR_READY.ref)],
         )
 
     def test_dark_key_does_nothing(self):
@@ -251,7 +251,7 @@ class HoldToConfirm(unittest.TestCase):
         deck.key_down("focus", T)
         deck.key_up("focus", T + 0.1)
         self.assertEqual(deck.screen, "home")
-        self.assertEqual(deck.take_outbox(), [c.Seen(), c.Key(key="focus", phase="down"), c.Key(key="focus", phase="up")])
+        self.assertEqual(deck.take_outbox(), [c.Seen(), c.Key(key="focus", phase="down", ref=fixtures.DECISION.ref), c.Key(key="focus", phase="up", ref=fixtures.DECISION.ref)])
 
     def test_result_follows_newer_model_only(self):
         deck = busy_deck()

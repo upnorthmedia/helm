@@ -141,8 +141,8 @@ class Deck:
         if previous is not None and model.counts.landed_today > previous.counts.landed_today:
             self.sweep_until = now + SWEEP_S
         if self.hold is not None and self.selected_index() is None:
-            # The held item left the list: cancel rather than let the hold land
-            # on whatever gets selected next (the bridge acts on its last select).
+            # The held item left the list: cancel, since the bridge would refuse
+            # a held key naming an item it no longer has.
             self._cancel_hold()
         if self.selected_index() is None:
             self._select(self.visible[0] if self.visible else None)
@@ -203,7 +203,7 @@ class Deck:
             return
         item = self.selected_item()
         assert item is not None
-        self.outbox.append(c.Key(key=key, phase="down"))
+        self.outbox.append(c.Key(key=key, phase="down", ref=item.ref))
         if key in HOLD_KEYS:
             self.hold = Hold(key=key, item=item, started=now, return_to=self.screen)
             self.screen = "confirm"
@@ -211,8 +211,9 @@ class Deck:
     def key_up(self, key: str, now: float) -> None:
         hold = self.hold
         if key == "focus":
-            if hold is None and self.key_lit("focus", now):
-                self.outbox.append(c.Key(key="focus", phase="up"))
+            item = self.selected_item()
+            if hold is None and item is not None and self.key_lit("focus", now):
+                self.outbox.append(c.Key(key="focus", phase="up", ref=item.ref))
             return
         if hold is None or hold.key != key:
             return
@@ -223,7 +224,7 @@ class Deck:
         hold = self.hold
         if hold is not None and now - hold.started >= HOLD_S:
             self.hold = None
-            self.outbox.append(c.Key(key=hold.key, phase="held"))
+            self.outbox.append(c.Key(key=hold.key, phase="held", ref=hold.item.ref))
             self.pending = Pending(
                 key=hold.key,
                 item=hold.item,
@@ -263,7 +264,7 @@ class Deck:
         assert hold is not None
         self.hold = None
         self.screen = hold.return_to
-        self.outbox.append(c.Key(key=hold.key, phase="up"))
+        self.outbox.append(c.Key(key=hold.key, phase="up", ref=hold.item.ref))
 
     def _move_selection(self, delta: int) -> None:
         """Move within the view; turning up from the first row goes back to Home."""

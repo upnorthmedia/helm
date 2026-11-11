@@ -590,7 +590,9 @@ static void test_events(void)
     ev.type = HELM_EVENT_KEY;
     ev.u.key.key = HELM_ACTION_LATER;
     ev.u.key.phase = HELM_KEY_HELD;
-    CHECK_STR(event_json(&ev), "{\"t\":\"key\",\"key\":\"later\",\"phase\":\"held\"}");
+    CHECK_STR(event_json(&ev), "{\"t\":\"key\",\"key\":\"later\",\"phase\":\"held\",\"ref\":null}");
+    ev.u.key.ref = "pr:a\"b";
+    CHECK_STR(event_json(&ev), "{\"t\":\"key\",\"key\":\"later\",\"phase\":\"held\",\"ref\":\"pr:a\\\"b\"}");
 
     memset(&ev, 0, sizeof ev);
     ev.type = HELM_EVENT_KNOB;
@@ -727,7 +729,8 @@ static void record(void *ctx, const helm_event_t *ev)
     char *out = ev_log[ev_count++];
     switch (ev->type) {
     case HELM_EVENT_KEY:
-        snprintf(out, 96, "key:%s:%s", helm_action_name(ev->u.key.key), helm_key_phase_name(ev->u.key.phase));
+        snprintf(out, 96, "key:%s:%s:%s", helm_action_name(ev->u.key.key), helm_key_phase_name(ev->u.key.phase),
+                 ev->u.key.ref != NULL ? ev->u.key.ref : "null");
         break;
     case HELM_EVENT_KNOB:
         snprintf(out, 96, "knob:%d", (int)ev->u.knob.delta);
@@ -909,7 +912,7 @@ static void test_deck_hold(void)
     CHECK_INT(deck.screen, HELM_SCREEN_RESULT);
     CHECK(deck.pending);
     CHECK_STR(deck.pending_short_id, "widget-api");
-    EVENTS("seen", "key:yes:down", "key:yes:held");
+    EVENTS("seen", "key:yes:down:decision:demo-widget-api:pick-cache", "key:yes:held:decision:demo-widget-api:pick-cache");
     helm_deck_key_up(&deck, HELM_ACTION_YES, T + 1100);
     NO_EVENTS();
     CHECK(!helm_deck_key_lit(&deck, HELM_ACTION_YES, T + 1100)); /* dark on the result screen */
@@ -923,7 +926,7 @@ static void test_deck_hold(void)
     helm_deck_key_up(&deck, HELM_ACTION_LATER, T + 500);
     helm_deck_tick(&deck, T + 2000);
     CHECK_INT(deck.screen, HELM_SCREEN_LIST);
-    EVENTS("key:later:down", "key:later:up");
+    EVENTS("key:later:down:decision:demo-widget-api:pick-cache", "key:later:up:decision:demo-widget-api:pick-cache");
 
     /* The knob does not move the selection while a key is held. */
     busy_deck();
@@ -933,13 +936,15 @@ static void test_deck_hold(void)
     CHECK_INT(deck.screen, HELM_SCREEN_CONFIRM);
     CHECK_STR(selected_ref(), DECISION.ref);
 
-    /* The list changes under the held key; the hold still names the original item. */
+    /* The list changes under the held key; the hold, and the held key's ref, still name the original item. */
     busy_deck();
     helm_deck_key_down(&deck, HELM_ACTION_HOLD, T);
     const fx_item_t *const moved[] = {&PR_READY, &DECISION};
     send_model(3, moved, 2, FX, T + 500);
+    ev_count = 0;
     helm_deck_tick(&deck, T + 1000);
     CHECK_STR(deck.pending_short_id, "widget-api");
+    EVENTS("key:hold:held:decision:demo-widget-api:pick-cache");
 
     /* The held item leaves the list: the hold is cancelled, not moved to another item. */
     busy_deck();
@@ -950,7 +955,7 @@ static void test_deck_hold(void)
     helm_deck_tick(&deck, T + 1500);
     CHECK(!deck.pending);
     CHECK_INT(deck.screen, HELM_SCREEN_HOME);
-    EVENTS("seen", "key:yes:down", "key:yes:up", "select:pr:sample-org/gizmo#42");
+    EVENTS("seen", "key:yes:down:decision:demo-widget-api:pick-cache", "key:yes:up:decision:demo-widget-api:pick-cache", "select:pr:sample-org/gizmo#42");
 
     /* A dark key does nothing (but still counts as a touch). */
     deck_fresh();
@@ -968,7 +973,7 @@ static void test_deck_hold(void)
     helm_deck_key_down(&deck, HELM_ACTION_FOCUS, T);
     helm_deck_key_up(&deck, HELM_ACTION_FOCUS, T + 100);
     CHECK_INT(deck.screen, HELM_SCREEN_HOME);
-    EVENTS("seen", "key:focus:down", "key:focus:up");
+    EVENTS("seen", "key:focus:down:decision:demo-widget-api:pick-cache", "key:focus:up:decision:demo-widget-api:pick-cache");
 }
 
 static void test_deck_result(void)
@@ -1790,7 +1795,7 @@ static void test_deck_away(void)
     CHECK(!deck.holding);
     helm_deck_key_down(&deck, HELM_ACTION_FOCUS, T);
     helm_deck_key_up(&deck, HELM_ACTION_FOCUS, T);
-    EVENTS("seen", "key:focus:down", "key:focus:up");
+    EVENTS("seen", "key:focus:down:decision:demo-widget-api:pick-cache", "key:focus:up:decision:demo-widget-api:pick-cache");
 
     /* Firstmate going away mid-hold cancels the hold. */
     deck_fresh();
@@ -1802,7 +1807,7 @@ static void test_deck_away(void)
     send_model(2, PROJECTS, 4, away, T + 500);
     CHECK(!deck.holding);
     CHECK_INT(deck.screen, HELM_SCREEN_HOME);
-    EVENTS("key:yes:up");
+    EVENTS("key:yes:up:decision:demo-widget-api:pick-cache");
     helm_deck_tick(&deck, T + 1500);
     CHECK(!deck.pending);
 }
@@ -1838,7 +1843,7 @@ static void test_deck_mac_locked(void)
     send_model(2, PROJECTS, 4, locked, T + 500);
     CHECK(!deck.holding);
     CHECK_INT(deck.screen, HELM_SCREEN_HOME);
-    EVENTS("key:yes:up");
+    EVENTS("key:yes:up:decision:demo-widget-api:pick-cache");
     helm_deck_tick(&deck, T + 1500);
     CHECK(!deck.pending);
     send_model(3, PROJECTS, 4, FX, T + 2000);

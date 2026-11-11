@@ -4,7 +4,7 @@
  * "-" stands for an empty string.
  *
  *   event hello <fw-hex> [<cap-hex>...]   -> frame hex
- *   event key <yes|later|hold|focus> <down|up|held>
+ *   event key <yes|later|hold|focus> <down|up|held> [<ref-hex>]   (no ref: null)
  *   event knob <int>
  *   event knob_press <0|1>
  *   event select <ref-hex>
@@ -115,6 +115,10 @@ static void do_event(char **argv, int argc)
     case HELM_EVENT_KEY:
         ev.u.key.key = (helm_action_t)index_of(argv[1], keys, 4);
         ev.u.key.phase = (helm_key_phase_t)index_of(argv[2], phases, 3);
+        if (argc > 3) {
+            owned[0] = decode_hex_arg(argv[3], NULL);
+            ev.u.key.ref = owned[0];
+        }
         break;
     case HELM_EVENT_KNOB:
         ev.u.knob.delta = (int32_t)strtol(argv[1], NULL, 10);

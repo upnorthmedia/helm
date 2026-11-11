@@ -44,7 +44,6 @@ class FakeBridge:
         self._next_send = start
         self._chime_next = False
         self._requests = 0
-        self._selected = ""
 
     def _model(self) -> c.Model:
         self.seq += 1
@@ -80,14 +79,12 @@ class FakeBridge:
             self._next_send = now  # send the calm model right away
         elif isinstance(event, c.Resync):
             self._next_send = now
-        elif isinstance(event, c.Key) and event.phase == "held" and event.key != "focus":
-            ref = self._selected
+        elif isinstance(event, c.Key) and event.phase == "held" and event.key != "focus" and event.ref is not None:
+            ref = event.ref
             self._requests += 1
             self.result = c.Result(request_id=f"helm-{event.key}-fake-{self._requests}", state="queued", text="Queued for firstmate")
             self._reply_due = (now + REPLY_AFTER_S, event.key, ref)
             self._next_send = now
-        elif isinstance(event, c.Select):
-            self._selected = event.ref
         return self.step(now)
 
 

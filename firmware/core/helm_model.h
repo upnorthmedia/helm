@@ -5,7 +5,7 @@
  * Strings live in one pool inside the model, addressed by offset. A payload is
  * at most HELM_FRAME_MAX_PAYLOAD bytes and every decoded string is shorter
  * than its quoted source, so the pool always holds every string of any model
- * that fits a frame: nothing is truncated, and a ref echoed in `select` is
+ * that fits a frame: nothing is truncated, and a ref echoed in `select` or `key` is
  * byte for byte what the bridge sent. Offsets rather than pointers keep the
  * struct safe to copy with memcpy.
  *
@@ -88,7 +88,7 @@ typedef struct {
 } helm_counts_t;
 
 typedef struct {
-    helm_str_t ref; /* stable id the bridge understands; echoed in `select` */
+    helm_str_t ref; /* stable id the bridge understands; echoed in `select` and `key` */
     helm_str_t short_id;
     helm_str_t home;
     helm_str_t detail; /* full text, shown only on a knob press */
