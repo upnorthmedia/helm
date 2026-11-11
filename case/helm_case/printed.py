@@ -89,11 +89,11 @@ def cradle_tab():
     that goes down through the slot in the cradle's arm. The tongue is flush
     with the glass side and narrower than the bar, so the bar's shoulder
     sits on the arm."""
-    g, t, l, tongue = P.CRADLE_TAB_GAP, P.CRADLE_TAB_T, P.CRADLE_TAB_L, P.CRADLE_TAB_TONGUE
+    g, t, tab_l, tongue = P.CRADLE_TAB_GAP, P.CRADLE_TAB_T, P.CRADLE_TAB_L, P.CRADLE_TAB_TONGUE
     w_low = sheet.cradle_underside_w()
     w_arm = w_low + P.CRADLE_T
-    bar = cq.Solid.makeBox(t, l, -P.SHEET_T - P.CRADLE_TAB_TOP - w_arm, cq.Vector(g, -l / 2, w_arm))
-    tl = l - 2.0
+    bar = cq.Solid.makeBox(t, tab_l, -P.SHEET_T - P.CRADLE_TAB_TOP - w_arm, cq.Vector(g, -tab_l / 2, w_arm))
+    tl = tab_l - 2.0
     return bar.fuse(cq.Solid.makeBox(tongue, tl, P.CRADLE_T, cq.Vector(g, -tl / 2, w_low))).clean()
 
 
@@ -125,11 +125,11 @@ def cradle(insert_holes=True):
         legs.append(cq.Solid.makeCylinder(P.CRADLE_LEG_D / 2, z_top - t, cq.Vector(x, y, t)))
         holes.append(cq.Solid.makeCylinder(P.PRINT_INSERT_D / 2, P.PRINT_INSERT_DEPTH + 1, cq.Vector(x, y, t - 1)))
     arms, slots = [], []
-    g, l, c = P.CRADLE_TAB_GAP, P.CRADLE_TAB_L, P.CRADLE_TAB_SLOT_CLEAR
+    g, tab_l, c = P.CRADLE_TAB_GAP, P.CRADLE_TAB_L, P.CRADLE_TAB_SLOT_CLEAR
     for loc, reach in _tab_frames():
-        arm = cq.Solid.makeBox(reach + g + P.CRADLE_TAB_T, l + 2.0, P.CRADLE_T, cq.Vector(-reach, -(l + 2.0) / 2, w_low))
+        arm = cq.Solid.makeBox(reach + g + P.CRADLE_TAB_T, tab_l + 2.0, P.CRADLE_T, cq.Vector(-reach, -(tab_l + 2.0) / 2, w_low))
         arms.append(to_case(arm.moved(loc)))
-        tl = l - 2.0 + 2 * c
+        tl = tab_l - 2.0 + 2 * c
         slot = cq.Solid.makeBox(P.CRADLE_TAB_TONGUE + 2 * c, tl, P.CRADLE_T + 2, cq.Vector(g - c, -tl / 2, w_low - 1))
         slots.append(to_case(slot.moved(loc)))
     solid = plate.fuse(*legs, *arms).cut(*slots)

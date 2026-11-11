@@ -1,0 +1,12 @@
+# Patterns scripts/check-hygiene.sh refuses in any tracked file, one extended
+# regular expression per line. This list is public, so it can only hold
+# patterns that are safe to publish. Keep names that must not appear in the
+# repository at all in a private list outside it and pass that list with
+# --deny when you run the script locally.
+
+# Private keys and access tokens.
+-----BEGIN [A-Z ]*PRIVATE KEY-----
+gh[opsur]_[A-Za-z0-9]{36}
+github_pat_[A-Za-z0-9_]{22,}
+xox[abprs]-[A-Za-z0-9-]{10,}
+sk-ant-[A-Za-z0-9_-]{20,}

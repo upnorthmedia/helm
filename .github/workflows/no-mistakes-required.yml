@@ -1,0 +1,45 @@
+name: Require no-mistakes
+run-name: "PR #${{ github.event.pull_request.number }} body compliance - ${{ github.event.action }} - event ${{ github.run_number }} (run ${{ github.run_id }})"
+
+# Pull requests to main must be raised through no-mistakes
+# (https://github.com/kunchenguid/no-mistakes), which writes a signature line
+# and a pipeline attestation into the PR body. The check is structural, a
+# contributor guardrail and not proof that the pipeline ran: an author can
+# edit their own PR body. The repository owner is exempt and ships directly;
+# see CONTRIBUTING.md.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches:
+      - main
+
+permissions:
+  contents: read
+  # Lets the action read the PR's live body and head commit instead of the
+  # event payload, which a rerun replays from the original trigger.
+  pull-requests: read
+
+# Every opened or edited event gets its own group, so a later body edit can
+# never replace an earlier pending check. Head changes coalesce.
+concurrency:
+  group: no-mistakes-required-${{ github.event.pull_request.number }}-${{ (github.event.action == 'opened' || github.event.action == 'edited') && github.run_id || 'head-change' }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: PR must be raised via no-mistakes
+    runs-on: ubuntu-latest
+    # Automation accounts skip the job here rather than through exempt-authors:
+    # a GITHUB_TOKEN pull request's run never starts, and a skipped job
+    # satisfies a required check.
+    if: >-
+      github.event.pull_request.user.login != 'github-actions[bot]' &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
+    steps:
+      # Pinned to an immutable commit, never @main: main of that repository is
+      # not reviewed by this one. Bumping the pin is its own pull request.
+      - name: Verify no-mistakes signature and pipeline attestation
+        uses: kunchenguid/no-mistakes/.github/actions/require-no-mistakes@f6441c96c352a18b9cadcaef6b6c7017e9ac3970 # v1.80.1
+        with:
+          exempt-authors: upnorthmedia

@@ -1,0 +1,58 @@
+name: Board report
+description: Results from running Helm on a real board
+labels: ["board-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Helm has not run on a real board yet, so every report helps. firmware/idf/README.md lists each pin, port, and timing assumption under "Verify on the board"; tell us which ones you checked and what you saw, including the ones that worked.
+
+  - type: input
+    id: commit
+    attributes:
+      label: Helm commit flashed
+      description: Output of `git rev-parse --short HEAD` when you built the firmware.
+    validations:
+      required: true
+
+  - type: input
+    id: board
+    attributes:
+      label: Board and chip revision
+      description: The board, and the chip revision from `esptool.py --chip esp32p4 chip_id`.
+      placeholder: Waveshare ESP32-P4 5 inch, chip revision v3.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: hardware
+    attributes:
+      label: What is fitted
+      description: Keys, knob, light stick, speaker, case, or the board alone on touch.
+    validations:
+      required: true
+
+  - type: textarea
+    id: checks
+    attributes:
+      label: Verify on the board results
+      description: Item number from firmware/idf/README.md, then what you saw. Mark each one worked, failed, or not checked.
+      placeholder: |
+        1. worked: H2 is the left receptacle
+        2. worked: fw=helm-idf-0.1 in the bridge log
+        4. failed: needed BOOT held to flash
+    validations:
+      required: true
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Bridge log or serial monitor output
+      description: The relevant lines only. Check them for private paths and names first.
+      render: text
+
+  - type: textarea
+    id: photos
+    attributes:
+      label: Photos or video
+      description: Optional. Crop out anything private.

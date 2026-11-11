@@ -198,9 +198,9 @@ class _Renderer:
                 i = j
         rendered = []
         for body, loose in items:
-            rest = [l for l in body[1:] if l.strip()]
-            cut = min((_indent(l) for l in rest), default=0)
-            inner = self.blocks([body[0]] + [l[cut:] for l in body[1:]])
+            rest = [line for line in body[1:] if line.strip()]
+            cut = min((_indent(line) for line in rest), default=0)
+            inner = self.blocks([body[0]] + [line[cut:] for line in body[1:]])
             if not loose and inner.startswith("<p>"):
                 end = inner.find("</p>")
                 inner = inner[3:end] + inner[end + 4 :]
