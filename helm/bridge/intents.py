@@ -17,7 +17,7 @@ import shlex
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Optional
 
 from helm.contract import Result
 from helm.bridge.commands import CommandRefused
@@ -38,6 +38,9 @@ ADOPT_MAX_AGE_S = 86400
 # The last firstmate reply this bridge has read, in the helm cache (never under a firstmate home).
 CURSOR_FILE = "inbox-reply-cursor.json"
 REQUEST_ID_MAX = 128  # fm-inbox.sh's limit
+INTENTS = ("yes", "later", "hold")
+# An answer that countermands an outstanding YES on the same item names that YES's request id.
+COUNTERMANDS_YES = ("later", "hold")
 _REQUEST_ID_UNSAFE = re.compile(r"[^A-Za-z0-9._:-]+")
 _FULL_SHA = re.compile(r"[0-9a-f]{40}")
 _STATUS_AT = re.compile(r"\[at=(\d+)\]")
@@ -85,8 +88,11 @@ def item_instance(cand: Candidate) -> Optional[str]:
 def request_id(intent: str, cand: Candidate, now: float) -> str:
     """Stable per item instance, intent, and day, so a repeat press is a replay rather than a second note,
     while a new commit on the PR or a reopened decision is a new ask."""
+    return _request_id(intent, cand, now, item_instance(cand))
+
+
+def _request_id(intent: str, cand: Candidate, now: float, instance: Optional[str]) -> str:
     day = time.strftime("%Y%m%d", time.localtime(now))
-    instance = item_instance(cand)
     tail = _REQUEST_ID_UNSAFE.sub("_", "%s-%s" % (instance, day) if instance else day)
     identity = "-".join(["helm", intent, cand.item.home, cand.task or "x", cand.note_key or "x"])
     head = _REQUEST_ID_UNSAFE.sub("_", identity)
@@ -110,8 +116,17 @@ def next_local_date(now: float) -> str:
     return (datetime.date.fromtimestamp(now) + datetime.timedelta(days=1)).isoformat()
 
 
-def note_text(intent: str, cand: Candidate, now: float) -> str:
+def intent_of(rid) -> str:
+    """The intent a Helm request id names (helm-<intent>-...), or "" for any other id."""
+    parts = rid.split("-", 2) if isinstance(rid, str) else []
+    return parts[1] if len(parts) > 2 and parts[0] == "helm" and parts[1] in INTENTS else ""
+
+
+def note_text(intent: str, cand: Candidate, now: float, replaces_yes: Optional[str] = None) -> str:
+    """The note for a held key. `replaces_yes` is the request id of a YES on this item that firstmate
+    has not replied to yet; a LATER or HOLD names it, so firstmate can tell which answer stands."""
     subject = _subject(cand)
+    replaces = " This replaces my earlier YES on it (request `%s`)." % replaces_yes if replaces_yes else ""
     if intent == "yes":
         pr = "`%s`" % cand.item.pr_url if cand.item.pr_url else "the PR it names"
         head = pinned_head(cand)
@@ -124,9 +139,9 @@ def note_text(intent: str, cand: Candidate, now: float) -> str:
             "If neither applies, change nothing and reply." % (YES_PREFIX, subject, pr)
         )
     if intent == "later":
-        return "Captain, from the Helm deck: defer %s until %s." % (subject, next_local_date(now))
+        return "Captain, from the Helm deck: defer %s until %s.%s" % (subject, next_local_date(now), replaces)
     if intent == "hold":
-        return "Captain, from the Helm deck: do not proceed on %s. Raise it with me in chat." % subject
+        return "Captain, from the Helm deck: do not proceed on %s.%s Raise it with me in chat." % (subject, replaces)
     raise ValueError("unknown intent %r" % intent)
 
 
@@ -136,6 +151,9 @@ class Pending:
     note_id: str
     started: float
     earlier: bool = False  # a replay of a note firstmate had already read: its reply is from before this press
+    intent: str = ""  # yes, later, or hold
+    ref: Optional[str] = None  # the item it answers, once known (a note taken back at start learns it by its id)
+    seen: bool = False  # firstmate has read the note (receipts' `acknowledged`), with no reply yet
 
 
 class IntentExecutor:
@@ -167,7 +185,9 @@ class IntentExecutor:
     def note(self, intent: str, cand: Candidate) -> Result:
         now = self.clock()
         rid = request_id(intent, cand, now)
-        argv = [self.inbox, "note", "--request-id", rid, "--json", "--", note_text(intent, cand, now)]
+        earlier_yes = self.outstanding(cand, "yes") if intent in COUNTERMANDS_YES else None
+        text = note_text(intent, cand, now, earlier_yes.request_id if earlier_yes else None)
+        argv = [self.inbox, "note", "--request-id", rid, "--json", "--", text]
         if self.dry_run:
             self._dry(argv, "note", self.env)
             return Result(rid, "queued", "dry run: %s on %s logged, not sent" % (intent.upper(), cand.item.short_id))
@@ -177,12 +197,12 @@ class IntentExecutor:
         what = "%s on %s" % (intent.upper(), cand.item.short_id)
         if done.returncode == 0 and note_id:
             if info.get("outcome") == "replay":
-                return self._replayed(rid, note_id, info, what, now)
-            self.pending[rid] = Pending(rid, note_id, now)
+                return self._replayed(rid, note_id, info, what, now, intent, cand.item.ref)
+            self.pending[rid] = Pending(rid, note_id, now, intent=intent, ref=cand.item.ref)
             return Result(rid, "queued", "queued %s" % what)
         if done.returncode == NOTE_EXIT_SAVED_NOT_ANNOUNCED and note_id:
             # Saved but the wake failed: repair the wake, never send the note again.
-            self.pending[rid] = Pending(rid, note_id, now)
+            self.pending[rid] = Pending(rid, note_id, now, intent=intent, ref=cand.item.ref)
             fixed = self.runner.run([self.inbox, "announce", "--json", note_id], env=self.env, timeout=20)
             if fixed.returncode == 0:
                 return Result(rid, "queued", "queued %s (wake repaired)" % what)
@@ -245,7 +265,7 @@ class IntentExecutor:
             log.warning("open %s failed (%s): %s", target.what, done.returncode, done.stderr.strip()[:200])
         return done.returncode == 0
 
-    def _replayed(self, rid: str, note_id: str, info: dict, what: str, now: float) -> Result:
+    def _replayed(self, rid: str, note_id: str, info: dict, what: str, now: float, intent: str, ref: str) -> Result:
         """The same ask again. If firstmate already read the note, say so, and label any reply as earlier.
 
         fm-inbox.sh can report a replayed note as not acknowledged once it has been announced,
@@ -262,20 +282,66 @@ class IntentExecutor:
             self.pending.pop(rid, None)
             return Result(rid, "replied", "answered earlier: %s. Earlier reply: %s" % (what, reply or "firstmate replied"))
         if acknowledged:
-            self.pending[rid] = Pending(rid, note_id, now, earlier=True)
+            self.pending[rid] = Pending(rid, note_id, now, earlier=True, intent=intent, ref=ref, seen=True)
             return Result(rid, "queued", "answered earlier: %s, no reply yet" % what)
-        self.pending[rid] = Pending(rid, note_id, now)
+        self.pending[rid] = Pending(rid, note_id, now, intent=intent, ref=ref)
         return Result(rid, "queued", "already queued %s" % what)
 
+    def outstanding(self, cand: Candidate, intent: str) -> Optional[Pending]:
+        """The note with this intent still waiting on a reply for this item instance, if any."""
+        found = self._answered([cand], intent)
+        return found.get(cand.item.ref)
+
+    def answered(self, candidates: Iterable[Candidate]) -> dict[str, str]:
+        """Each item's answer still waiting on firstmate's reply (the latest sent, when there are two)."""
+        return {ref: pend.intent for ref, pend in self._answered(candidates).items()}
+
+    def _answered(self, candidates: Iterable[Candidate], intent: Optional[str] = None) -> dict[str, Pending]:
+        """Pending notes by the item they answer. A note counts only for the item instance it was sent for:
+        its request id must be the one this item would get today for that intent, on the day it was sent.
+        So a new commit on the PR, or a reopened decision, has nothing pending."""
+        by_ref = {c.item.ref: c for c in candidates}
+        instances: dict[str, Optional[str]] = {}  # item_instance reads status files: once per item per call
+
+        def matches(pend: Pending, cand: Candidate) -> bool:
+            ref = cand.item.ref
+            if ref not in instances:
+                instances[ref] = item_instance(cand)
+            return _request_id(pend.intent, cand, pend.started, instances[ref]) == pend.request_id
+
+        found: dict[str, Pending] = {}
+        for pend in self.pending.values():
+            if not pend.intent or (intent is not None and pend.intent != intent):
+                continue
+            if pend.ref is not None:
+                cand = by_ref.get(pend.ref)
+                cand = cand if cand is not None and matches(pend, cand) else None
+            else:  # taken back at start: find its item by its request id
+                cand = next((c for c in by_ref.values() if matches(pend, c)), None)
+                if cand is not None:
+                    pend.ref = cand.item.ref
+            if cand is None:
+                continue
+            best = found.get(cand.item.ref)
+            if best is None or pend.started >= best.started:
+                found[cand.item.ref] = pend
+        return found
+
     def check_receipts(self) -> list[Result]:
-        """Firstmate's replies to pending notes. Runs `receipts` only while something is pending."""
+        """Firstmate's replies to pending notes, and which of them it has read. Runs `receipts` only while
+        something is pending."""
         if not self.pending:
             return []
         cursor = self._load_cursor()
         data = self._receipts(["--after", cursor] if cursor else [])
         if data is None:
             return []
-        replies = {note_id: note["reply"] for note_id, note in _notes(data).items() if note.get("reply")}
+        notes = _notes(data)
+        for pend in self.pending.values():
+            row = notes.get(pend.note_id)
+            if row is not None and row.get("acknowledged") is True:
+                pend.seen = True  # never unset: a note leaves the bounded list, not handled/
+        replies = {note_id: note["reply"] for note_id, note in notes.items() if note.get("reply")}
         for reply in data.get("replies") or []:
             if isinstance(reply, dict) and reply.get("id"):
                 replies[reply["id"]] = reply
@@ -309,7 +375,7 @@ class IntentExecutor:
             at = _utc_epoch(note.get("at"))
             if at is None or now - at > ADOPT_MAX_AGE_S:
                 continue
-            self.pending[rid] = Pending(rid, note_id, at)
+            self.pending[rid] = Pending(rid, note_id, at, intent=intent_of(rid), seen=note.get("acknowledged") is True)
         results = []
         for reply in (data.get("replies") or []) if cursor else []:
             note = notes.get(reply.get("id")) if isinstance(reply, dict) else None
