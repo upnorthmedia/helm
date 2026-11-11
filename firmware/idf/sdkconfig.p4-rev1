@@ -1,0 +1,4 @@
+# Add to SDKCONFIG_DEFAULTS for ESP32-P4 silicon older than v3.0 (see README.md).
+# ESP-IDF 5.5 builds for v3.1 and newer by default, and the two are not compatible.
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
+CONFIG_ESP32P4_REV_MIN_1=y

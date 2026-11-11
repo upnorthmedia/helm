@@ -1,0 +1,10 @@
+# CI only: build the non-default paths so they keep compiling. The default
+# build has every hardware part on; this one turns them the other way.
+CONFIG_HELM_LINK_UART0=y
+CONFIG_HELM_ROTATE_90=y
+CONFIG_HELM_TOUCH_KEYS=n
+CONFIG_HELM_KEYS_GPIO=n
+CONFIG_HELM_KNOB_I2C_ADDR=0x37
+CONFIG_HELM_KNOB_REVERSE=y
+CONFIG_HELM_LIGHTS=n
+CONFIG_HELM_CHIME_LOG_ONLY=y

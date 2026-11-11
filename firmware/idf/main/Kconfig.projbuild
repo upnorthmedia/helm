@@ -1,0 +1,195 @@
+menu "Helm deck"
+
+    choice HELM_LINK
+        prompt "Link to the Mac"
+        default HELM_LINK_USB_CDC
+        help
+            Which USB-C port carries the Harness frame to the bridge.
+
+        config HELM_LINK_USB_CDC
+            bool "Native USB (the board's \"USB OTG\" Type-C port, H2), TinyUSB CDC-ACM"
+            help
+                The ESP32-P4's own USB 2.0 port enumerates as a CDC-ACM device
+                (/dev/cu.usbmodem* on macOS) with no driver and no reset wired
+                to DTR or RTS. The "Type-C UART" port stays free for flashing
+                and the log console.
+
+        config HELM_LINK_UART0
+            bool "UART0 through the CH343P (the \"USB TO UART\" Type-C port, H1)"
+            help
+                Fallback: frames share UART0 with the boot ROM output, and log
+                lines go out as Harness log frames (type 0x04) so they do not
+                break the framing. The CH343P's DTR and RTS drive the board's
+                reset and boot pins, so a host that toggles them on open resets
+                the deck.
+    endchoice
+
+    config HELM_LINK_UART_BAUD
+        int "UART0 baud rate"
+        depends on HELM_LINK_UART0
+        default 115200
+        help
+            Must match the bridge; helm/wire/transport.py opens the port at 115200.
+
+    choice HELM_DISPLAY_ROTATION
+        prompt "Screen rotation"
+        default HELM_ROTATE_CASE
+        help
+            How far to turn the picture (and the touch input with it),
+            clockwise, from the panel's native portrait orientation (720 x
+            1280, USB-C edge at the bottom). The screens are laid out
+            landscape, 1280 x 720, so only the two quarter turns are offered.
+
+        config HELM_ROTATE_CASE
+            bool "270 (90 counter-clockwise): the Helm case (module turned 90 clockwise, USB-C edge facing the left wall)"
+        config HELM_ROTATE_90
+            bool "90 clockwise: module turned 90 counter-clockwise, USB-C edge facing the right wall"
+    endchoice
+
+    config HELM_TOUCH_KEYS
+        bool "On-screen YES / LATER / HOLD / SHOW ME keys"
+        default y
+        help
+            Draw the four keys along the bottom of the screen so the board works
+            without the key switches. Holding an on-screen key is the same as
+            holding the physical key.
+
+    # Pin defaults are general pins on the board's 40-pin header J3 (GPIO3,
+    # 4, 5, 21, 22), clear of the display, touch, codec, SD card, Wi-Fi
+    # module, USB, and strapping pins (firmware/idf/README.md, "Pins"). io.c
+    # refuses at build time a pin the board itself uses.
+
+    menu "Key switches (GPIO)"
+        config HELM_KEYS_GPIO
+            bool "Read the four key switches from GPIO"
+            default y
+            help
+                Each switch connects its pin to GND when pressed; the internal
+                pull-up holds it high otherwise, so a pin with nothing on it
+                reads as a key that is never pressed. The on-screen keys work
+                either way.
+
+        config HELM_PIN_KEY_YES
+            int "YES key GPIO"
+            depends on HELM_KEYS_GPIO
+            range 0 54
+            default 22
+        config HELM_PIN_KEY_LATER
+            int "LATER key GPIO"
+            depends on HELM_KEYS_GPIO
+            range 0 54
+            default 3
+        config HELM_PIN_KEY_HOLD
+            int "HOLD key GPIO"
+            depends on HELM_KEYS_GPIO
+            range 0 54
+            default 4
+        config HELM_PIN_KEY_FOCUS
+            int "SHOW ME key GPIO"
+            depends on HELM_KEYS_GPIO
+            range 0 54
+            default 5
+        config HELM_KEY_DEBOUNCE_MS
+            int "Debounce time (ms)"
+            depends on HELM_KEYS_GPIO
+            range 1 200
+            default 20
+    endmenu
+
+    menu "Knob (Adafruit 5880 I2C encoder)"
+        config HELM_KNOB
+            bool "Use the I2C knob"
+            default y
+            help
+                Adafruit's I2C STEMMA QT rotary encoder with push switch (PID
+                5880, seesaw firmware) on the board's shared I2C bus (GPIO7
+                SDA, GPIO8 SCL on J3 pins 3 and 5, with the touch controller
+                and codecs). With no
+                knob plugged in, the deck logs that once and looks for it
+                again every 2 s.
+
+        config HELM_KNOB_I2C_ADDR
+            hex "I2C address"
+            depends on HELM_KNOB
+            range 0x36 0x3D
+            default 0x36
+            help
+                0x36 with no address jumpers closed; A0, A1, and A2 add 1, 2, and 4.
+
+        config HELM_KNOB_REVERSE
+            bool "Reverse the turn direction"
+            depends on HELM_KNOB
+            default n
+            help
+                Turning clockwise should move down the list. Set this if it
+                moves up.
+
+        config HELM_KNOB_LONG_PRESS_MS
+            int "Long press (mute) time (ms)"
+            depends on HELM_KNOB
+            range 300 3000
+            default 800
+            help
+                The same as the touch screen's long press.
+    endmenu
+
+    menu "Lights (NeoPixel chain)"
+        config HELM_LIGHTS
+            bool "Drive the light chain"
+            default y
+            help
+                One NeoPixel chain on one pin: the four key lights (the NeoKey
+                socket breakouts, in the order YES, LATER, HOLD, SHOW ME),
+                then the 8-light NeoPixel Stick. Driven by RMT through
+                espressif/led_strip. A pin with nothing on it is harmless.
+
+        config HELM_PIN_LIGHTS
+            int "Light chain data GPIO"
+            depends on HELM_LIGHTS
+            range 0 54
+            default 21
+
+        config HELM_LIGHT_BRIGHTNESS
+            int "Brightness cap (0 to 255)"
+            range 0 255
+            default 64
+            help
+                Every light, the knob's included, is scaled by this over 255.
+    endmenu
+
+    menu "Chime"
+        choice HELM_CHIME_OUTPUT
+            prompt "Chime output"
+            default HELM_CHIME_SPEAKER
+            help
+                One short tone per model that asks for a chime, unless muted
+                (long press on the knob or the screen).
+
+            config HELM_CHIME_SPEAKER
+                bool "The board's speaker output (ES8311 codec, NS4150B amplifier, 2-pin speaker header)"
+                help
+                    Through Waveshare's board package (bsp_audio_codec_speaker_init).
+                    Needs a small 8 ohm speaker on the board's GH1.25 2-pin
+                    speaker header (J5); with none fitted it plays to nothing.
+            config HELM_CHIME_LOG_ONLY
+                bool "None: log each chime"
+        endchoice
+
+        config HELM_CHIME_HZ
+            int "Tone (Hz)"
+            depends on HELM_CHIME_SPEAKER
+            range 200 8000
+            default 1320
+        config HELM_CHIME_MS
+            int "Length (ms)"
+            depends on HELM_CHIME_SPEAKER
+            range 20 1000
+            default 120
+        config HELM_CHIME_VOLUME
+            int "Volume (0 to 100)"
+            depends on HELM_CHIME_SPEAKER
+            range 0 100
+            default 60
+    endmenu
+
+endmenu

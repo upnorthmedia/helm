@@ -1,0 +1,10 @@
+Helm
+Copyright 2026 The Helm authors
+
+Software is licensed under the Apache License 2.0 (LICENSE). The case design
+and build guides are licensed under CERN-OHL-W-2.0, other documentation and
+images under CC BY 4.0, and the Helm logo is all rights reserved. REUSE.toml
+maps every path to its license; the license texts are in LICENSES/.
+
+This product includes material from third parties under their own licenses;
+see THIRD_PARTY_NOTICES.md.

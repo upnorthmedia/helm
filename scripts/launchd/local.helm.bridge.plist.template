@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  The Helm bridge as a launchd user agent. scripts/install-agent.sh fills in the
+  @NAME@ placeholders and writes the result to ~/Library/LaunchAgents/; do not
+  load this template directly.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>@LABEL@</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>@PYTHON@</string>
+    <string>-m</string>
+    <string>helm.bridge</string>
+    <string>@MODE@</string>
+    <string>--port</string>
+    <string>@PORT@</string>
+    <string>--home</string>
+    <string>@FIRSTMATE_HOME@</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>@CHECKOUT@</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>@PATH@</string>
+    <key>PYTHONUNBUFFERED</key>
+    <string>1</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <!-- Restart after a crash or a nonzero exit (for example, the deck is unplugged). -->
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+  <key>ProcessType</key>
+  <string>Background</string>
+  <key>StandardOutPath</key>
+  <string>@LOG_DIR@/bridge.log</string>
+  <key>StandardErrorPath</key>
+  <string>@LOG_DIR@/bridge.log</string>
+</dict>
+</plist>

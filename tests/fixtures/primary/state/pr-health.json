@@ -1,0 +1,7 @@
+{
+  "schema": "fm-pr-health.v1",
+  "prs": {
+    "https://github.com/example/beta/pull/7": {"checks": [{"head": "b7", "name": "ci"}], "conflicts": []},
+    "https://github.com/example/delta/pull/3": {"checks": [], "conflicts": []}
+  }
+}

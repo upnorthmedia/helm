@@ -1,0 +1,64 @@
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.x"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      # The simulator's Tk tests run for real under a virtual display (xvfb)
+      # rather than skipping for lack of one.
+      - name: Install xvfb
+        run: command -v xvfb-run || { sudo apt-get update && sudo apt-get install -y xvfb; }
+      # The C device core (firmware/core): unit tests under ASan and UBSan, then
+      # the cross-tests against helm/wire. The runner image has cmake and gcc.
+      - name: Firmware core
+        run: scripts/test-firmware.sh
+      - name: Tests
+        run: xvfb-run -a python3 -m unittest discover -s tests -t . -v
+
+  # The ESP-IDF deck firmware (firmware/idf) for the Waveshare ESP32-P4 board,
+  # in Espressif's image for the pinned ESP-IDF version. Builds the default
+  # configuration (every hardware part on: key switches, knob, lights, chime)
+  # and one with every alternative (UART link, rotation 90, those parts off
+  # or changed, ESP32-P4 before v3.0) so those paths keep compiling.
+  firmware-idf:
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.5.6
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # The container runs as root over a checkout it does not own; without
+      # this, git refuses the repo and the build cannot read its version.
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Build (default)
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf.py -C firmware/idf -B build/idf build
+      # The runner's disk does not hold the image and two builds at once.
+      - name: Build (alternatives)
+        shell: bash
+        run: |
+          rm -rf build/idf
+          . "$IDF_PATH/export.sh"
+          idf.py -C firmware/idf -B build/idf-alt -D SDKCONFIG="$PWD/build/idf-alt/sdkconfig" \
+            -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.p4-rev1;sdkconfig.ci-alt" build

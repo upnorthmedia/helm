@@ -1,0 +1,18 @@
+Helm logo: all rights reserved
+
+Copyright 2026 The Helm authors. All rights reserved.
+
+The Helm logo (the wheel mark and the "helm" wordmark) is not covered by the
+open licenses that apply to the rest of this repository. This applies to the
+files REUSE.toml marks as LicenseRef-Helm-Logo: case/logo/**,
+case/out/engrave/logo-h1-wheel-helm.*, and
+case/out/engrave/face_logo_placement.*.
+
+You may not use, copy, modify, or distribute the logo, or engrave or print it
+on anything you make, sell, or give away, without written permission from the
+copyright holders. Building a case from this repository's open design files
+without the logo is allowed under those files' own license.
+
+Images and renders in this repository that show the logo are licensed for
+their content under their own license, but that grants no right to use the
+logo itself.

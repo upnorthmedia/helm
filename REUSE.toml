@@ -1,0 +1,34 @@
+# License map for the whole repository (https://reuse.software/spec-3.3/).
+# When several annotations match a file, the last one wins.
+version = 1
+
+# Software: the default.
+[[annotations]]
+path = "**"
+SPDX-FileCopyrightText = "2026 The Helm authors"
+SPDX-License-Identifier = "Apache-2.0"
+
+# Documentation and images.
+[[annotations]]
+path = ["**/*.md", "docs/research/**", "docs/sim/**", "docs/images/**"]
+SPDX-FileCopyrightText = "2026 The Helm authors"
+SPDX-License-Identifier = "CC-BY-4.0"
+
+# Hardware: the case design and the build guides.
+[[annotations]]
+path = ["case/**", "docs/build/**"]
+SPDX-FileCopyrightText = "2026 The Helm authors"
+SPDX-License-Identifier = "CERN-OHL-W-2.0"
+
+# The logo is not under an open license.
+[[annotations]]
+path = ["case/logo/**", "case/out/engrave/logo-h1-wheel-helm.*", "case/out/engrave/face_logo_placement.*"]
+SPDX-FileCopyrightText = "2026 The Helm authors"
+SPDX-License-Identifier = "LicenseRef-Helm-Logo"
+
+# Copied from or derived from openharness (MIT); see THIRD_PARTY_NOTICES.md.
+[[annotations]]
+path = ["tests/vectors/**", "helm/wire/frame.py", "firmware/core/helm_frame.c", "firmware/core/helm_frame.h"]
+precedence = "override"
+SPDX-FileCopyrightText = ["2026 Autonomous, Inc.", "2026 The Helm authors"]
+SPDX-License-Identifier = "MIT"

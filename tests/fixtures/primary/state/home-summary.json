@@ -1,0 +1,26 @@
+{
+  "schema": "fm-secondmate-home-summary.v1",
+  "generated_epoch": 1000,
+  "counts": {"active_children": 3, "decisions_open": 4, "queued": 4, "landed": 2},
+  "contributions": {
+    "captain": [
+      {"task": "delta-docs", "url": "https://github.com/example/delta/pull/3", "kind": "pr", "head": "d3", "reason": "checks green; merge approval needed"},
+      {"task": "alpha-fix", "url": "https://github.com/example/alpha/pull/12", "kind": "pr", "head": "a12", "reason": "checks green; merge approval needed"}
+    ]
+  },
+  "decisions_open": [
+    {"id": "widget-pricing", "key": "widget-pricing", "verb": "captain-hold", "summary": "Widget pricing plan", "question": "Pick a pricing plan for the widget shop: A or B (recommend A).", "reason": "needs a pick", "hold_bucket": "live", "hold_age_days": 3, "source": "backlog"},
+    {"id": "alpha-fix", "key": "merge-alpha-12", "verb": "needs-decision", "summary": "Alpha https://github.com/example/alpha/pull/12 checks green; merge?", "reason": null, "source": "status"},
+    {"id": "beta-port", "key": "merge-beta-7", "verb": "needs-decision", "summary": "Beta https://github.com/example/beta/pull/7 ready for merge", "reason": null, "source": "status"},
+    {"id": "mate1", "key": "captain-hold-gamma-choice-1", "verb": "needs-decision", "summary": "captain hold gamma-choice", "reason": null, "source": "status"}
+  ],
+  "active_children": [
+    {"id": "alpha-fix", "kind": "ship", "state": "working", "repo": "alpha", "name": "Alpha fix", "doing": "tests"},
+    {"id": "beta-port", "kind": "ship", "state": "blocked", "repo": "beta", "name": "Beta port", "doing": "waiting on credentials"},
+    {"id": "delta-docs", "kind": "ship", "state": "working", "repo": "delta", "name": "Delta docs", "doing": "docs"}
+  ],
+  "landed": [
+    {"id": "eps-old", "title": "Old work", "pr_url": "https://github.com/example/eps/pull/1", "completion": {"date": "2000-01-01", "verb": "merged"}},
+    {"id": "eps-new", "title": "New work", "pr_url": "https://github.com/example/eps/pull/2", "completion": {"date": "TODAY", "verb": "merged"}}
+  ]
+}

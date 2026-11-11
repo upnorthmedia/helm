@@ -1,0 +1,28 @@
+phase,part,buy_qty,used_in_build,vendor,sku,url,unit_price_usd,line_total_usd,stock_2026_11_10,price_and_stock_checked,notes
+1,"Waveshare ESP32-P4-WIFI6-Touch-LCD-5, standard version (no camera)",1,1,Waveshare,33762,https://www.waveshare.com/esp32-p4-wifi6-touch-lcd-5.htm?sku=33762,44.99,44.99,In stock (no count shown),yes,"$43.99 from 2. Comes with a GH1.25 8 ohm 2 W speaker, the deck's speaker. Not 33763 (camera on the knob's I2C address). Amazon resellers fine if the silkscreen reads ESP32-P4-WIFI6-Touch-LCD-5 and it is not 33763"
+1,NeoKey Socket Breakout with NeoPixel,5,4 plus a spare,Adafruit,4978,https://www.adafruit.com/product/4978,1.75,8.75,In stock,yes,"Hot-swap MX socket, 1N4148 in series with the switch, one SK6812 mini-E light"
+1,"Kailh tactile brown switches, 10 pack",1,4,Adafruit,4954,https://www.adafruit.com/product/4954,6.95,6.95,61,yes,
+1,I2C STEMMA QT rotary encoder with encoder (seesaw),1,1,Adafruit,5880,https://www.adafruit.com/product/5880,7.95,7.95,In stock,yes,"EC11 encoder, 6 mm D-shaft, M7 x 0.75 bushing; wired from the 40-pin header to its 0.1 inch pads"
+1,"Aluminum knob for 6 mm shaft, black, 2 pack",1,1,DROK (Amazon),B0F21X91R4,https://www.amazon.com/dp/B0F21X91R4,9.00,9.00,Only 14 left,yes,"The machined black knob: 24 mm flange, 14.5 mm tall, set screw; whether it hides the encoder nut is unverified"
+1,"NeoPixel Stick, 8 RGB LEDs",1,1,Adafruit,1426,https://www.adafruit.com/product/1426,5.95,5.95,61,yes,"The light bar, last on the GPIO21 chain"
+1,Half-size breadboard,1,1,Adafruit,64,https://www.adafruit.com/product/64,4.95,4.95,In stock,yes,Phase 1 only
+1,"Male-male jumper wires, 20 x 150 mm",1,about 15,Adafruit,1957,https://www.adafruit.com/product/1957,1.95,1.95,In stock,yes,From the board's 40-pin socket to the breadboard
+1,"Extra-long break-away 0.1 inch male header, 5 x 16 pin",1,about 50 pins,Adafruit,400,https://www.adafruit.com/product/400,3.00,3.00,In stock,yes,"Headers for the NeoKeys, the encoder board, the stick, and the Perma-Proto"
+1,"Black relegendable keycaps, 10 pack (optional)",1,4,Adafruit,5662,https://www.adafruit.com/product/5662,7.50,7.50,34,yes,Bench caps until the backlit caps (phase 3) arrive
+1,"USB-C to USB-C cable, 1 m (optional)",2,2,Adafruit,4199,https://www.adafruit.com/product/4199,9.95,19.90,In stock,yes,"One for the link (""USB"" on the bench, the back jack in the case), one for flashing (""USB TO UART""). Any data-capable cables work"
+2,"Brass heat-set inserts, M3 x 4 mm, 50 pack",1,4,Adafruit,4255,https://www.adafruit.com/product/4255,5.95,5.95,In stock,yes,"Cradle legs; Adafruit gives only the 4.2 mm outside diameter, the case's holes are 4.0 mm (PRINT_INSERT_D)"
+2,"Closed-cell neoprene foam sheet, 1/16 inch, adhesive back, 12 x 59 inch",1,1 pad plus scraps,Amazon,B0FK5DWHXM,https://www.amazon.com/dp/B0FK5DWHXM,9.97,9.97,In stock,yes,Pad between the module and the cradle; tape under the USB-C breakout
+2,"PETG filament: black or grey for the cradle and speaker holder, white or natural for the light holder",1,about 60 g (estimate),Any,,,,,,no,Not priced; use what you have
+2,VHB tape or epoxy,1,a few cm,Any,,,,,,no,Bonds the light and speaker holders under the face; not priced
+3,"SendCutSend test coupon, mx_coupon.dxf, 0.063 inch 5052 H32, deburred, black anodized",1,1,SendCutSend,,https://sendcutsend.com/,,,,no,"Not quoted; anodized so the hole fit matches the finished case, then the laser shop's test piece"
+3,"SendCutSend cover and base, 0.063 inch 5052, black anodized, 6 S-M3-0 in the cover",1,1 set,SendCutSend,,https://sendcutsend.com/,,,,no,Not uploaded or quoted; no extra coupon (the order 1 coupon is the laser test piece)
+3,"Logo engraving, fiber laser, on the finished cover",1,1,Local laser shop,,,,,,no,Not quoted; files and instructions in case/out/engrave/
+3,"Custom backlit keycaps, 1x1, own icons (YES, LATER, HOLD, SHOW ME)",4,4,Max Keyboard,,https://maxkeyboard.com/custom-backlight-compatible-keycap-for-backlit-keyboard.html,10.00,40.00,In stock,yes,"MX stem, shine-through icons from your art; OEM profile, not low profile. Icon art not made yet"
+3,"Machine screw M3 x 6 mm, button head hex socket (ISO 7380), black oxide",,10,Any,,,,,,yes,"Recommended; Pololu 2694 (Phillips pan head, 25 pack, $1.85) is an acceptable alternative. 6 up through the base into the cover's flange nuts, 4 up through the floor into the cradle's inserts"
+3,"Little rubber bumper feet, 4 pack",1,4,Adafruit,550,https://www.adafruit.com/product/550,0.95,0.95,In stock,yes,Under the base
+3,"USB-C screw panel mount jack to 6-pin JST PH lead, 175 mm",1,1,Adafruit,6153,https://www.adafruit.com/product/6153,2.95,2.95,In stock,yes,"The everyday cable's jack, low in the back wall; CC pulled down with 5.1k inside"
+3,"USB Type C breakout board, downstream connection",1,1,Adafruit,4090,https://www.adafruit.com/product/4090,2.95,2.95,In stock,yes,"The jack's lead is soldered to it (VBUS, GND, D+, D-)"
+3,"Slim right-angle USB C to USB C cable, 100 mm",1,1,Adafruit,6370,https://www.adafruit.com/product/6370,6.95,6.95,In stock,yes,"Breakout to the board's ""USB"" receptacle; Adafruit verified power, data, and CC"
+3,Perma-Proto half-size board,1,1,Adafruit,1609,https://www.adafruit.com/product/1609,4.50,4.50,11,yes,Soldered 5 V and ground distribution in the case
+3,"Female-male jumper wires, 20 x 150 mm",1,about 12,Adafruit,1954,https://www.adafruit.com/product/1954,1.95,1.95,In stock,yes,Male end into the board's 40-pin socket
+3,"Hook-up wire spool set, 22 AWG solid, 6 colors (optional)",1,,Adafruit,1311,https://www.adafruit.com/product/1311,15.95,15.95,In stock,yes,Skip if you have hook-up wire

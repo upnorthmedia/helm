@@ -1,0 +1,55 @@
+# SendCutSend rule checks (0.063 inch 5052)
+
+cover_flat.dxf: 139.60 x 231.61 mm, 28 inner cuts
+    smallest cut: 1.80 mm
+    cut to edge: 4.47 mm
+    web between cuts: 1.80 mm
+    feature to bend: 6.20 mm
+    bend 90 degrees, centreline at y = 14.94 mm
+    bend 75 degrees, centreline at y = 29.19 mm
+    bend 105 degrees, centreline at y = 166.98 mm
+    bend 90 degrees, centreline at y = 216.67 mm
+base_flat.dxf: 248.68 x 135.71 mm, 11 inner cuts
+    smallest cut: 3.40 mm
+    cut to edge: 3.25 mm
+    web between cuts: n/a
+    feature to bend: 12.04 mm
+    bend 90 degrees, centreline at x = 53.10 mm
+    bend 90 degrees, centreline at x = 195.57 mm
+mx_coupon.dxf: 130.00 x 38.00 mm, 19 inner cuts
+    smallest cut: 2.00 mm
+    cut to edge: 5.00 mm
+    web between cuts: 2.00 mm
+cover shortest flange: 16.20 mm (minimum 7.70)
+base shortest flange: 54.36 mm (minimum 7.70)
+
+# Logo engraving (wheel + helm, out/engrave/)
+
+logo to cut: 5.00 mm (minimum 4.00)
+logo to side edge: 57.47 mm (minimum 4.00)
+logo to bend: 5.01 mm (minimum 4.00)
+    width: 24.66 mm
+    height: 9.00 mm
+    left_from_cover_left: 57.47 mm
+    right_from_cover_right: 57.47 mm
+    bottom_from_face_front: 123.25 mm
+    centre_from_cover_left: 69.80 mm
+    centre_off_window_centre: 0.00 mm
+    window_to_mark: 5.00 mm
+    mark_to_back_bend: 5.01 mm
+    left_from_window_left: 43.57 mm
+
+# Printable parts
+
+print_cradle.stl: 118.9 x 54.6 x 29.1 mm
+print_light_holder.stl: 57.0 x 15.0 x 7.4 mm
+print_speaker_holder.stl: 33.2 x 23.2 x 7.8 mm
+print_mx_coupon.stl: 130.0 x 38.0 x 3.0 mm
+
+# Interference (parts that overlap by more than 0.01 cubic mm)
+
+metal: 59 items, 0 overlaps
+metal with 18.6 x 14.0 mm aluminum caps: 59 items, 0 overlaps
+
+Case outside: 145.0 wide x 135.7 deep x 54.4 tall at the back, 18.0 at the front, face sloped 15 degrees
+Envelope: 0.712 litres, footprint 196.8 cm2

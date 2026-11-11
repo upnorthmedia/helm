@@ -1,0 +1,10 @@
+{
+  "schema": "fm-secondmate-home-summary.v1",
+  "generated_epoch": 1000,
+  "counts": {"active_children": 0, "decisions_open": 1, "queued": 1, "landed": 0},
+  "decisions_open": [
+    {"id": "gamma-choice", "key": "gamma-choice", "verb": "captain-hold", "summary": "Gamma choice", "question": "Choose the gamma layout.", "hold_bucket": "live", "hold_age_days": 1, "source": "backlog"}
+  ],
+  "active_children": [],
+  "landed": []
+}
