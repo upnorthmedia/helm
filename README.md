@@ -246,7 +246,7 @@ Dry run is always the default: rerunning the installer without `--live` switches
 - **Designed.** The v2 hardware (5 inch board, landscape, sheet-metal case) is designed; the case passes its SendCutSend rule, logo clearance, and interference checks in `case/build.py`.
 - **Simulated.** The bridge and the simulator run end to end over the real wire. The test suite and the firmware core's C tests run in CI.
 - **Firmware builds.** The ESP-IDF app builds in CI in its default configuration and with every alternative setting. Its screens were rendered on the Mac through the same LVGL and compared with the simulator.
-- **Not yet done.** Nothing has run on a real board. Every pin, port, and timing assumption is listed under [Verify on the board](firmware/idf/README.md#verify-on-the-board). The product images are renders, not photos.
+- **Not yet done.** Nothing has run on a real board. Every pin, port, and timing assumption is listed under [Verify on the board](firmware/idf/README.md#verify-on-the-board). The product images and the teaser video are renders, not photos.
 
 A finished Helm is planned for sale, for anyone who would rather not build one.
 
