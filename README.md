@@ -68,7 +68,7 @@ Helm moves those asks onto your desk. It shows what is new since you last touche
 | **YES** (green check) | hold 1 s | "Go." On a PR waiting to merge, firstmate merges that exact PR under its normal checks. On a decision, it goes with its recommendation, only if it gave exactly one. If neither fits, it changes nothing and replies. YES stays dark when the PR is known red or conflicted. |
 | **LATER** (blue clock) | hold 1 s | "Not now." Asks firstmate to defer the item until tomorrow. |
 | **HOLD** (amber pause) | hold 1 s | "Stop, and talk to me." Tells firstmate not to proceed and to raise it with you in chat. The one answer key that also works on a stuck worker. |
-| **SHOW ME** (white ring) | tap | "Let me see." Brings the item's herdr pane to the front (the worker's own pane, or firstmate's pane for a decision), then opens the item in your browser: its live Lavish review board, else its report as a styled page, else its PR. Lit only when the item has a herdr pane. |
+| **SHOW ME** (white ring) | tap | "Let me see." Brings the item's herdr pane to the front (the worker's own pane, or firstmate's pane for a decision), then opens the item in your browser: its live Lavish review board, else its report as a styled page, else its PR. Lit when the item has a herdr pane or something to open (a review board link, a report in its home, or a PR); with no pane it just opens that. |
 | **Knob** | turn | On Home, step through your project views (all, then each project). In the list, move between items. |
 | | press | Open the selected item's full text, go back, or dismiss a result. |
 | | press and hold | Mute the chime. The knob glows red while muted; hold again to unmute. |

@@ -118,6 +118,37 @@ class BuildCandidatesTest(unittest.TestCase):
         self.assertEqual(cands[decision_ref("primary", "alpha-fix", "merge-alpha-12")].pane, "wA:p2")
         self.assertNotIn("focus", cands[decision_ref("primary", "widget-pricing", "widget-pricing")].item.actions)
 
+    def test_show_me_lights_for_a_pane_a_pr_or_a_report(self):
+        # No firstmate pane anywhere, so each item has only what the case gives it.
+        (self.primary / "state" / "alpha-fix.meta").write_text("kind=ship\n")
+        (self.primary / "state" / "delta-docs.meta").write_text("kind=ship\n")
+        report = self.primary / "data" / "widget-pricing" / "report.md"
+        report.parent.mkdir(parents=True)
+        report.write_text("# Widget pricing\n")
+        cands, _ = self.build(agents=[])
+        actions = lambda ref: cands[ref].item.actions
+        # Pane only: the blocked worker has its own pane and no PR or report.
+        self.assertIn("focus", actions(worker_ref("primary", "beta-port")))
+        # PR only: no pane, but a PR to open.
+        self.assertIsNone(cands[decision_ref("primary", "alpha-fix", "merge-alpha-12")].pane)
+        self.assertIn("focus", actions(decision_ref("primary", "alpha-fix", "merge-alpha-12")))
+        self.assertIn("focus", actions(pr_ref("primary", "https://github.com/example/delta/pull/3")))
+        # Report only: no pane or PR, but data/<task>/report.md in its home.
+        self.assertIsNone(cands[decision_ref("primary", "widget-pricing", "widget-pricing")].pane)
+        self.assertIn("focus", actions(decision_ref("primary", "widget-pricing", "widget-pricing")))
+        # Nothing: no pane, PR, or report.
+        self.assertNotIn("focus", actions(decision_ref("mate1", "gamma-choice", "gamma-choice")))
+
+    def test_show_me_stays_dark_without_anything_to_open(self):
+        (self.primary / "state" / "beta-port.meta").write_text("kind=ship\n")
+        # A report outside the task's data dir, or a directory named report.md, does not count.
+        (self.primary / "beta-port").mkdir()
+        (self.primary / "beta-port" / "report.md").write_text("x")
+        (self.primary / "data" / "widget-pricing" / "report.md").mkdir(parents=True)
+        cands, _ = self.build(agents=[])
+        self.assertNotIn("focus", cands[worker_ref("primary", "beta-port")].item.actions)
+        self.assertNotIn("focus", cands[decision_ref("primary", "widget-pricing", "widget-pricing")].item.actions)
+
     def test_idle_is_never_counted_as_done_or_blocked(self):
         _, counts = self.build(agents=[{"agent_status": "idle", "pane_id": "x"}])
         self.assertEqual((counts.herdr_working, counts.herdr_blocked), (0, 0))
@@ -152,6 +183,21 @@ class LedgerStateTest(unittest.TestCase):
                          "https://github.com/example/zeta/pull/1")
         self.assertEqual(counts.decisions, 1)
         self.assertEqual(counts.prs_ready, 2)
+
+    def test_stand_ins_light_show_me_for_a_board_or_pr_in_their_text(self):
+        ledger = LedgerState()
+        now = 10_000
+        ledger.apply("primary", [
+            {"v": 1, "ts": now - 1, "event": "task.status", "task": "zeta", "state": "blocked", "key": None,
+             "text": "review http://127.0.0.1:4387/session/0123456789abcdef"},
+            {"v": 1, "ts": now - 1, "event": "task.status", "task": "eta", "state": "failed", "key": None, "text": "boom"},
+            {"v": 1, "ts": now - 1, "event": "task.pr_ready", "task": "theta", "pr": "https://github.com/example/theta/pull/2"},
+        ], now)
+        cands, _ = build_candidates([], ledger, [], now)
+        by_ref = {c.item.ref: c.item for c in cands}
+        self.assertIn("focus", by_ref[worker_ref("primary", "zeta")].actions)
+        self.assertNotIn("focus", by_ref[worker_ref("primary", "eta")].actions)
+        self.assertIn("focus", by_ref[pr_ref("primary", "https://github.com/example/theta/pull/2")].actions)
 
     def test_resolution_merge_and_expiry(self):
         ledger = LedgerState()

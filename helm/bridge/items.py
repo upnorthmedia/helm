@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Optional
 
 from helm.contract import Counts, Item
+from helm.bridge.show import has_something_to_open
 from helm.bridge.sources import HomeRef, read_meta, safe_task_id, status_line_epoch
 
 PR_URL = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/pull/\d+")
@@ -216,11 +217,16 @@ def agent_title(agent: dict) -> str:
     return clip(tokens.get("title") or agent.get("terminal_title_stripped") or agent.get("pane_id") or "agent")
 
 
-def _actions(pane: Optional[str], *base: str) -> list:
+def _actions(showable: bool, *base: str) -> list:
     actions = list(base)
-    if pane:
+    if showable:
         actions.append("focus")
     return actions
+
+
+def _showable(pane: Optional[str], home_path: Optional[Path], task: str, detail: str, pr_url: Optional[str]) -> bool:
+    """SHOW ME applies when there is a pane to focus or a board, report, or PR to open."""
+    return bool(pane) or has_something_to_open(home_path, task, detail, pr_url)
 
 
 def build_candidates(
@@ -269,7 +275,7 @@ def build_candidates(
                 unseen=False,
                 home=label,
                 detail=detail,
-                actions=_actions(pane, *base),
+                actions=_actions(_showable(pane, path, task, detail, url), *base),
                 pr_url=url,
                 checks=checks,
                 project=task_project(path, task, repos) or pr_repo(url),
@@ -284,6 +290,7 @@ def build_candidates(
             checks = pr_checks(url, snap.pr_health, c.get("head"), c.get("reason"))
             pane = (read_meta(path, task).get("herdr_pane_id") if task else None) or fm_pane
             base = ["later", "hold"] if checks == "red" else ["yes", "later", "hold"]
+            detail = "%s: %s %s" % (task, c.get("reason") or "ready", url)
             item = Item(
                 ref=ref,
                 kind="pr_ready",
@@ -292,8 +299,8 @@ def build_candidates(
                 age_s=0,
                 unseen=False,
                 home=label,
-                detail="%s: %s %s" % (task, c.get("reason") or "ready", url),
-                actions=_actions(pane, *base),
+                detail=detail,
+                actions=_actions(_showable(pane, path, task, detail, url), *base),
                 pr_url=url,
                 checks=checks,
                 project=(task_project(path, task, repos) if task else None) or pr_repo(url),
@@ -310,6 +317,7 @@ def build_candidates(
             task = str(child["id"])
             ref = worker_ref(label, task)
             pane = read_meta(path, task).get("herdr_pane_id")
+            detail = "%s %s: %s" % (task, child.get("state"), child.get("doing") or child.get("name") or "")
             item = Item(
                 ref=ref,
                 kind="worker_problem",
@@ -318,8 +326,8 @@ def build_candidates(
                 age_s=0,
                 unseen=False,
                 home=label,
-                detail="%s %s: %s" % (task, child.get("state"), child.get("doing") or child.get("name") or ""),
-                actions=_actions(pane, "hold"),
+                detail=detail,
+                actions=_actions(_showable(pane, path, task, detail, None), "hold"),
                 project=task_project(path, task, repos),
             )
             candidates[ref] = Candidate(item, task, child.get("state") or "", path, pane, status_line_epoch(path, task))
@@ -350,18 +358,21 @@ def build_candidates(
             if prov.pr_url and prov.key.startswith("merge-"):
                 merge_ask_urls.add(prov.pr_url)
             item = Item(ref, "decision", "red", clip("%s/%s" % (prov.task, prov.key)), 0, False, prov.home,
-                        prov.text, _actions(pane, *(["later", "hold"] if checks == "red" else ["yes", "later", "hold"])),
+                        prov.text, _actions(_showable(pane, path, prov.task, prov.text, prov.pr_url),
+                                            *(["later", "hold"] if checks == "red" else ["yes", "later", "hold"])),
                         prov.pr_url, checks, project)
             candidates[ref] = Candidate(item, prov.task, prov.key, path, pane, prov.ts)
         elif prov.kind == "worker_problem":
             pane = read_meta(path, prov.task).get("herdr_pane_id") if path else None
+            detail = "%s: %s" % (prov.task, prov.text)
             item = Item(ref, "worker_problem", "amber", clip(prov.task), 0, False, prov.home,
-                        "%s: %s" % (prov.task, prov.text), _actions(pane, "hold"), project=project)
+                        detail, _actions(_showable(pane, path, prov.task, detail, None), "hold"), project=project)
             candidates[ref] = Candidate(item, prov.task, "", path, pane, prov.ts)
         elif prov.kind == "pr_ready" and prov.pr_url:
             pane = (read_meta(path, prov.task).get("herdr_pane_id") if path else None) or (firstmate_pane(path, agents) if path else None)
+            detail = "%s: ready %s" % (prov.task, prov.pr_url)
             item = Item(ref, "pr_ready", "blue", clip(pr_short(prov.pr_url)), 0, False, prov.home,
-                        "%s: ready %s" % (prov.task, prov.pr_url), _actions(pane, "yes", "later", "hold"),
+                        detail, _actions(_showable(pane, path, prov.task, detail, prov.pr_url), "yes", "later", "hold"),
                         prov.pr_url, "unknown", project)
             candidates[ref] = Candidate(item, prov.task, "pr-%s" % prov.pr_url.rstrip("/").split("/")[-1], path, pane, prov.ts)
 
