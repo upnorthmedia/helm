@@ -336,7 +336,13 @@ class Bridge:
             self.handle(event)
         self.tick()
 
+    def start(self) -> None:
+        """Take back notes sent before a restart, and show a reply that came while the bridge was down."""
+        for result in self.executor.adopt():
+            self._set_result(result, self.clock())
+
     def run_forever(self) -> None:
         log.info("helm bridge running (%s)", "dry run" if self.executor.dry_run else "LIVE")
+        self.start()
         while True:
             self.step()

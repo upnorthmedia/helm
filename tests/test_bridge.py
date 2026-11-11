@@ -122,6 +122,48 @@ class BridgeTest(unittest.TestCase):
         self.assertIn("held to confirm: YES on `alpha-fix` / `merge-alpha-12`", self.executor.dry_log[0])
         self.assertEqual(self.runner.calls_for("fm-inbox.sh", "note"), [])
 
+    def set_head(self, url, head):
+        path = self.primary / "state" / "home-summary.json"
+        summary = json.loads(path.read_text())
+        [row] = [c for c in summary["contributions"]["captain"] if c["url"] == url]
+        row["head"] = head
+        path.write_text(json.dumps(summary))
+
+    def test_held_yes_on_a_pr_pins_the_commit_and_a_new_commit_is_a_new_ask(self):
+        url = "https://github.com/example/delta/pull/3"
+        ref = "pr|primary|" + url
+        heads = ("fe05bcdcdc4928012781a5f1a2a77cbb5398e106", "ad782ecdac770fc6eb9a62e44f90873fb97fb26b")
+        self.set_head(url, heads[0])
+        self.bridge.tick(self.now)
+        self.bridge.handle(Key("yes", "held", ref), self.now)
+        first = self.advance(0.1).result
+        self.assertIn("merge `%s` at commit `%s` under your normal checks" % (url, heads[0]), self.executor.dry_log[-1])
+        self.assertTrue(first.request_id.endswith("-%s-%s" % (heads[0][:12], time.strftime("%Y%m%d", time.localtime(self.now)))))
+
+        self.set_head(url, heads[1])  # a push lands after the deck showed the PR
+        self.advance(2.5)
+        self.bridge.handle(Key("yes", "held", ref), self.now)
+        second = self.advance(0.1).result
+        self.assertNotEqual(first.request_id, second.request_id)
+        self.assertIn("at commit `%s`" % heads[1], self.executor.dry_log[-1])
+
+    def test_start_takes_back_notes_and_shows_a_reply_from_while_it_was_down(self):
+        self.runner.allow_writes = True
+        self.executor.dry_run = False
+        self.cache.mkdir()
+        (self.cache / "inbox-reply-cursor.json").write_text(json.dumps({"home": str(self.primary), "cursor": "000000000003"}))
+        stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(self.now - 30))
+        reply = {"id": "n1", "body": "Merged.", "cursor": "000000000004"}
+        self.runner.receipts.update(
+            pending=[{"id": "n2", "at": stamp, "request_id": "helm-hold-primary-x-y-20261111", "reply": None}],
+            handled=[{"id": "n1", "at": stamp, "request_id": "helm-yes-primary-a-b-20261111", "reply": reply}],
+            replies=[reply], reply_cursor="000000000004")
+        self.bridge.start()
+        model = self.bridge.tick(self.now)
+        self.assertEqual((model.result.request_id, model.result.state, model.result.text),
+                         ("helm-yes-primary-a-b-20261111", "replied", "Merged."))
+        self.assertEqual(list(self.executor.pending), ["helm-hold-primary-x-y-20261111"])
+
     def test_lost_select_does_not_turn_yes_onto_the_previous_item(self):
         # A real deck (the simulator's) in front of the bridge, with one select frame lost on the way.
         deck = Deck()
