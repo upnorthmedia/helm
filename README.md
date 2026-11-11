@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/hero.jpg" alt="Helm: a black sloped aluminum desk deck with a 5 inch landscape screen, four lit keys, a light bar, and a knob" width="880">
+  <img src="docs/images/hero.jpg" alt="Helm: a black sloped aluminum desk deck with a 5 inch landscape screen, four lit keys, a light bar, and a knob" width="760">
 </p>
 
 <h1 align="center">Helm</h1>
@@ -7,31 +7,55 @@
 <p align="center"><strong>Your agents, one glance away.</strong></p>
 
 <p align="center">
-Helm is a desk control deck for <a href="#what-you-need">firstmate and herdr</a>. A 5 inch screen and eight lights tell you what needs you. Four held keys answer it. Your keyboard stays on your work.
+A desk control deck for people running AI coding agents with <a href="#what-you-need">firstmate and herdr</a>.<br>
+A 5 inch screen and eight lights show what your agents need. Four held keys answer it. Your keyboard stays on your work.
 </p>
 
 <p align="center">
-  <a href="#build-your-own">Build your own</a> ·
-  <a href="#try-the-simulator">Try the simulator</a> ·
-  <a href="#how-it-works">How it works</a> ·
-  <a href="#project-status">Status</a>
+  <a href="#build-your-own"><strong>Build your own</strong></a> &nbsp;·&nbsp;
+  <a href="#try-the-simulator"><strong>Try the simulator in 2 minutes</strong></a> &nbsp;·&nbsp;
+  <a href="https://github.com/upnorthmedia/helm"><strong>Star or watch the repo for updates</strong></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/upnorthmedia/helm/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/upnorthmedia/helm/tests.yml?branch=main&label=tests" alt="tests workflow status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/code-Apache--2.0-blue" alt="Code license: Apache-2.0"></a>
+  <a href="LICENSES/CERN-OHL-W-2.0.txt"><img src="https://img.shields.io/badge/hardware-CERN--OHL--W--2.0-blue" alt="Hardware license: CERN-OHL-W-2.0"></a>
+  <a href="LICENSES/CC-BY-4.0.txt"><img src="https://img.shields.io/badge/docs-CC_BY_4.0-blue" alt="Docs license: CC BY 4.0"></a>
+  <br>
+  <sub>Built with ESP32-P4 · ESP-IDF · LVGL · CadQuery · the Python standard library</sub>
 </p>
 
 > **Status:** designed, simulated, and the firmware builds in CI. It has not yet run on a real board, and the product images and video are renders. Details under [Project status](#project-status).
 
 <p align="center">
-  <a href="docs/media/helm-teaser.mp4?raw=true"><img src="docs/images/teaser-poster.jpg" alt="Play the 35 second Helm teaser video" width="880"></a>
+  <a href="docs/media/helm-teaser.mp4?raw=true"><img src="docs/images/teaser-poster.jpg" alt="Play the 35 second Helm teaser video" width="720"></a>
   <br>
   <sub>Watch the 35 second teaser (MP4, 10 MB, with sound).</sub>
 </p>
+
+## What you get
+
+<table>
+  <tr>
+    <td width="25%" valign="top"><strong>Stay in flow</strong><br>Asks leave your windows and land on your desk: a pulse in the item's color and one chime. No tab hunting.</td>
+    <td width="25%" valign="top"><strong>Answer with one held key</strong><br>Hold YES, LATER, or HOLD for a second and firstmate gets one note about the exact item on screen.</td>
+    <td width="25%" valign="top"><strong>See the whole story</strong><br>Tap SHOW ME and the agent's pane comes forward, with its review board, report, or PR open in your browser.</td>
+    <td width="25%" valign="top"><strong>Nothing happens by accident</strong><br>Every answer is a held press, firstmate merges only through its own checks, and the bridge starts in dry run.</td>
+  </tr>
+</table>
+
+## How it works in 3 steps
+
+1. **Plug it in.** One USB-C cable to your Mac. A small bridge program on the Mac (it can start at login) connects the deck to firstmate and herdr.
+2. **It shows what needs you.** A new decision, a PR ready, or a stuck agent pulses a light in its color and rings one chime. When nothing is new, the lights show your Claude usage.
+3. **Hold a key.** Hold YES, LATER, or HOLD for one second to answer the item on screen, or tap SHOW ME to see everything behind it. Firstmate acts, and its reply shows on the deck.
 
 ## Why Helm
 
 Running a crew of AI agents means a steady trickle of small asks. Merge this PR? Which of these two options? This worker is stuck. Each one is quick to answer and expensive to notice: find the right window, scroll the right pane, remember what the question was, then find your place again.
 
-Helm moves those asks out of your windows and onto your desk. When nothing needs you, it stays calm and shows how much Claude usage you have left. When something new arrives, a light in its color starts to pulse and a single chime sounds. You glance down, read it, and answer with one held key. Your editor never loses focus.
-
-It is not another dashboard. It shows what is new since you last touched it, so a long backlog never turns into a wall of red. And it never acts on its own: every press is a note to firstmate, which acts through the same guards it always uses.
+Helm moves those asks onto your desk. It shows what is new since you last touched it, so a long backlog never turns into a wall of red. And it never acts on its own: every press is a note to firstmate, which acts through the same guards it always uses.
 
 ## The controls
 
@@ -118,7 +142,7 @@ The screen is a 1280 x 720 touch screen. These are screenshots from the simulato
   </tr>
 </table>
 
-## How it works
+## Under the hood
 
 ```mermaid
 flowchart LR
@@ -164,9 +188,11 @@ v1, the 4 inch board in the first case, is in git history at commit `b2f7670`.
 
 ## Try the simulator
 
-No hardware needed. Python 3.11 or newer with Tk; no other packages.
+No hardware needed. With Python 3.11 or newer with Tk already installed, this is a clone and one command; there are no other packages.
 
 ```sh
+git clone https://github.com/upnorthmedia/helm.git && cd helm
+
 # The simulator alone, with demo data
 scripts/run-sim.sh --fake
 
@@ -224,6 +250,26 @@ Dry run is always the default: rerunning the installer without `--live` switches
 
 A finished Helm is planned for sale, for anyone who would rather not build one.
 
+## FAQ
+
+**Do I need firstmate?**
+Yes, for real use. Helm shows firstmate's decisions, workers, and PRs and sends your answers to firstmate's inbox; firstmate does the acting. herdr provides the agent panes SHOW ME brings forward and the context gauge. To look around first, the simulator runs with demo data and needs neither.
+
+**Does it work without the hardware?**
+Yes. The [simulator](#try-the-simulator) looks and behaves like the deck and speaks the same wire, so the bridge cannot tell them apart. On the hardware side, the board alone works from touch, with no keys, knob, lights, or chime fitted.
+
+**Do I need a Mac?**
+For the bridge, yes: it starts at login through launchd and reads the Mac's lock state. The simulator only needs Python 3.11+ with Tk.
+
+**Can I buy one?**
+Finished units are planned. There is no date or price yet; star or watch the repo for updates.
+
+**Is it safe to press YES?**
+It is built so the wrong press is hard and a dangerous one is impossible. Every answer needs a one second hold with the exact item on screen. Each item, answer, and day sends at most one note. YES is dark on a PR known to be red or conflicted, and firstmate merges only when the PR is open, conflict free, and green at the current commit, checked live. Helm itself cannot merge, push, or type into a pane, and the bridge runs only a fixed allowlist of commands, in dry run until you start it with `--live`.
+
+**What does it cost to build?**
+About $170: the priced parts on the [bill of materials](docs/build/bom.md) come to $171.51 (checked 2026-11-10), before the SendCutSend case order and the logo engraving, which are not quoted yet, and shipping from six vendors.
+
 ## Documentation
 
 - Build: [bill of materials](docs/build/bom.md), [wiring](docs/build/wiring.md), [assembly](docs/build/assembly.md)
@@ -232,6 +278,14 @@ A finished Helm is planned for sale, for anyone who would rather not build one.
 - Bridge: [helm/bridge/README.md](helm/bridge/README.md)
 - Simulator and wire: [sim/README.md](sim/README.md)
 - Research and design decisions: [docs/research/README.md](docs/research/README.md)
+
+## Get started
+
+<p align="center">
+  <a href="#build-your-own"><strong>Build your own</strong></a> &nbsp;·&nbsp;
+  <a href="#try-the-simulator"><strong>Try the simulator</strong></a> &nbsp;·&nbsp;
+  <a href="https://github.com/upnorthmedia/helm"><strong>Star or watch the repo for updates</strong></a>
+</p>
 
 ## License
 
