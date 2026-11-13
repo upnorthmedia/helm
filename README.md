@@ -191,6 +191,7 @@ The deck stays thin: it draws the model the bridge sends and reports key and kno
 
 The build guides are for v2: the 5 inch Waveshare LCD-5 in the sheet-metal case, the build the firmware on main targets.
 
+- **[First build manual](docs/build/guide/index.html)**: an illustrated, tabbed guide to the bench build and printed fit test, with checklists and a measurement worksheet. Open the HTML file locally in your browser; no build step is needed.
 - **[Bill of materials](docs/build/bom.md)** ([CSV](docs/build/bom.csv)): every part with vendor, price, and stock, and totals by phase. The priced parts come to $171.51 before the SendCutSend case order and the logo engraving (prices checked 2026-11-10).
 - **[Wiring](docs/build/wiring.md)**: each part to the LCD-5's 40-pin header as the firmware's defaults name them, and what to check on the real board.
 - **[Assembly](docs/build/assembly.md)**: phase 1 on the breadboard (flashing and the bridge included), phase 2 the printed parts and bench measurements, phase 3 the SendCutSend order and the logo engraving.
