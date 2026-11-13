@@ -68,6 +68,16 @@ static lv_display_t *display_start(void)
     return bsp_display_start_with_config(&cfg);
 }
 
+/*
+ * The board package's bsp_display_lock() (1.0.4) returns esp_lv_adapter_lock()'s
+ * esp_err_t as a bool, so it reads false when the lock is taken and true when it
+ * is not. Ask the adapter directly; release with bsp_display_unlock() as usual.
+ */
+static bool display_lock(int32_t timeout_ms)
+{
+    return esp_lv_adapter_lock(timeout_ms) == ESP_OK;
+}
+
 static uint32_t now_ms(void)
 {
     return (uint32_t)(esp_timer_get_time() / 1000); /* wraps after 49 days; the core allows it */
@@ -175,7 +185,7 @@ static void deck_task(void *arg)
         io_update(&s_deck, now);
         if (now - last_draw >= DRAW_EVERY_MS) {
             last_draw = now;
-            if (bsp_display_lock(100)) {
+            if (display_lock(100)) {
                 ui_render(&s_deck, now);
                 bsp_display_unlock();
             }
@@ -193,7 +203,7 @@ void app_main(void)
     lv_display_t *display = display_start();
     ESP_ERROR_CHECK(display != NULL ? ESP_OK : ESP_FAIL);
     ESP_ERROR_CHECK(bsp_display_backlight_on());
-    if (bsp_display_lock(-1)) {
+    if (display_lock(-1)) {
         ui_init(post_input);
         bsp_display_unlock();
     }
