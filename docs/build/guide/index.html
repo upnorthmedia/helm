@@ -1932,10 +1932,13 @@
             <strong>Use a terminal at the repository root.</strong>
             <p>
               Commands below come from the build docs. Replace
-              <code>/dev/cu.usbmodemXXXX</code> with the flashing port and
+              <code>/dev/cu.wchusbserialXXXX</code> with the flashing port and
               <code>/dev/cu.usbmodemYYYY</code> with the native link port. They
-              are placeholders, not discovered devices. Keep a note of each
-              name.
+              are placeholders, not discovered devices. On the first board the
+              flashing port (USB TO UART) appeared as
+              <code>/dev/cu.wchusbserial…</code> and the link port (USB) as
+              <code>/dev/cu.usbmodem…</code>, so the name tells them apart.
+              Keep a note of each name.
             </p>
           </aside>
           <article class="step" id="step-1-1">
@@ -1983,7 +1986,8 @@
                 <pre
                   tabindex="0"
                 ><code>git clone -b v5.5.6 --depth 1 --recursive --shallow-submodules https://github.com/espressif/esp-idf.git ~/.cache/helm-esp-idf/esp-idf-v5.5.6
-IDF_TOOLS_PATH=~/.cache/helm-esp-idf/tools ~/.cache/helm-esp-idf/esp-idf-v5.5.6/install.sh esp32p4</code></pre>
+export IDF_TOOLS_PATH=~/.cache/helm-esp-idf/tools
+~/.cache/helm-esp-idf/esp-idf-v5.5.6/install.sh esp32p4</code></pre>
                 <p class="success">
                   <strong>Success:</strong> The ESP32-P4 tools finish installing
                   without an error.
@@ -2000,7 +2004,8 @@ IDF_TOOLS_PATH=~/.cache/helm-esp-idf/tools ~/.cache/helm-esp-idf/esp-idf-v5.5.6/
                 </div>
                 <pre
                   tabindex="0"
-                ><code>IDF_TOOLS_PATH=~/.cache/helm-esp-idf/tools . ~/.cache/helm-esp-idf/esp-idf-v5.5.6/export.sh
+                ><code>export IDF_TOOLS_PATH=~/.cache/helm-esp-idf/tools
+. ~/.cache/helm-esp-idf/esp-idf-v5.5.6/export.sh
 idf.py -C firmware/idf build</code></pre>
                 <p class="success">
                   <strong>Success:</strong> The firmware build completes. Its
@@ -2008,6 +2013,13 @@ idf.py -C firmware/idf build</code></pre>
                   firmware/idf/managed_components/.
                 </p>
               </div>
+              <p>
+                Keep <code>export IDF_TOOLS_PATH=…</code> on its own line. In
+                zsh, <code>IDF_TOOLS_PATH=… . export.sh</code> on one line does
+                not reach the sourced script, which then falls back to
+                <code>~/.espressif</code>. Run the export lines again in every
+                new terminal.
+              </p>
               <aside class="gap">
                 <strong>Not in the repo yet</strong>
                 <p>
@@ -2113,6 +2125,13 @@ idf.py -C firmware/idf build</code></pre>
                   BOOT, and POWER. If dark, press POWER once and record that it
                   needed a press.
                 </li>
+                <li>
+                  Run every command in this step in a terminal where you ran the
+                  two export lines from 1.1, with the same
+                  <code>python3</code> <code>install.sh</code> used. That puts
+                  ESP-IDF’s own esptool first; do not use a separately
+                  installed esptool.
+                </li>
               </ol>
               <div class="command">
                 <div class="command-top">
@@ -2126,8 +2145,10 @@ idf.py -C firmware/idf build</code></pre>
                 <pre tabindex="0"><code>ls /dev/cu.*</code></pre>
                 <p class="success">
                   <strong>Success:</strong> A new serial port appears after
-                  connection. The CH343P name and whether a WCH driver is needed
-                  on macOS are unverified.
+                  connection. <strong>Seen on the first board:</strong> the
+                  CH343P appeared as <code>/dev/cu.wchusbserial…</code>. Whether
+                  that name depends on a WCH driver on macOS was not
+                  checked.
                 </p>
               </div>
               <div class="command">
@@ -2141,13 +2162,22 @@ idf.py -C firmware/idf build</code></pre>
                 </div>
                 <pre
                   tabindex="0"
-                ><code>esptool.py --chip esp32p4 -p /dev/cu.usbmodemXXXX chip_id
-esptool.py --chip esp32p4 -p /dev/cu.usbmodemXXXX flash_id</code></pre>
+                ><code>esptool.py --chip esp32p4 -p /dev/cu.wchusbserialXXXX chip_id
+esptool.py --chip esp32p4 -p /dev/cu.wchusbserialXXXX flash_id</code></pre>
                 <p class="success">
                   <strong>Success:</strong> A chip revision is reported; flash
                   should read 32 MB. Record both before choosing a build.
+                  <strong>Seen on the first board:</strong> revision v3.2 and
+                  32 MB of flash, read with ESP-IDF’s esptool 4.13.0.
                 </p>
               </div>
+              <p>
+                If <code>flash_id</code> fails with “The chip stopped
+                responding”, check which esptool ran. On the first board a
+                separately installed esptool 5.2.0 read the revision, then
+                failed that way on <code>flash_id</code>; ESP-IDF’s bundled one
+                worked.
+              </p>
               <details>
                 <summary>Chip older than v3.0? Use this separate build</summary>
                 <div class="detail-body">
@@ -2189,7 +2219,7 @@ esptool.py --chip esp32p4 -p /dev/cu.usbmodemXXXX flash_id</code></pre>
                     </div>
                     <pre
                       tabindex="0"
-                    ><code>idf.py -C firmware/idf -B build/idf-rev1 -D SDKCONFIG=&quot;$PWD/build/idf-rev1/sdkconfig&quot; -p /dev/cu.usbmodemXXXX flash monitor</code></pre>
+                    ><code>idf.py -C firmware/idf -B build/idf-rev1 -D SDKCONFIG=&quot;$PWD/build/idf-rev1/sdkconfig&quot; -p /dev/cu.wchusbserialXXXX flash monitor</code></pre>
                     <p class="success">
                       <strong>Success:</strong> Flashing completes and the
                       monitor shows boot logs. Exit with Ctrl+].
@@ -2209,11 +2239,13 @@ esptool.py --chip esp32p4 -p /dev/cu.usbmodemXXXX flash_id</code></pre>
                 </div>
                 <pre
                   tabindex="0"
-                ><code>idf.py -C firmware/idf -p /dev/cu.usbmodemXXXX flash monitor</code></pre>
+                ><code>idf.py -C firmware/idf -p /dev/cu.wchusbserialXXXX flash monitor</code></pre>
                 <p class="success">
                   <strong>Success:</strong> Flashing completes and boot logs
                   appear. The screen should show “link unknown”. Exit the
-                  monitor with Ctrl+].
+                  monitor with Ctrl+]. <strong>Seen on the first
+                  board:</strong> the normal build booted to “link
+                  unknown”.
                 </p>
               </div>
               <p>
@@ -2321,8 +2353,17 @@ esptool.py --chip esp32p4 -p /dev/cu.usbmodemXXXX flash_id</code></pre>
               </p>
               <p>
                 A new <code>/dev/cu.usbmodem*</code> appears, a CDC-ACM device
-                named <strong>Helm deck</strong>. This is the bridge port. Then
-                unplug USB TO UART and check that USB alone powers the board.
+                named <strong>Helm deck</strong>. This is the bridge port, not
+                the <code>wchusbserial</code> one. Then unplug USB TO UART and
+                check that USB alone powers the board.
+                <strong>Seen on the first board:</strong> the link came up as
+                <code>/dev/cu.usbmodem1234561</code>, product Helm deck.
+              </p>
+              <p>
+                <strong>No new port at all?</strong> Suspect the cable first:
+                swap in the flashing cable, which you know carries data. On the
+                first board the first link cable showed no device until it was
+                swapped.
               </p>
               <div class="comparison">
                 <div>
@@ -2438,13 +2479,15 @@ esptool.py --chip esp32p4 -p /dev/cu.usbmodemXXXX flash_id</code></pre>
                 <p class="success">
                   <strong>Success:</strong> Look for device hello:
                   fw=helm-idf-0.1 caps=screen-1280x720,... . A model should
-                  appear within 2 s.
+                  appear within 2 s. <strong>Seen on the first board:</strong>
+                  the bridge logged device hello over native USB.
                 </p>
               </div>
               <p>
                 Stop the bridge and wait: the deck should say
                 <strong>“no word from the bridge for 10 s”</strong>. Restart it
-                for the remaining tests.
+                for the remaining tests. <strong>Seen on the first
+                board.</strong>
               </p>
               <details>
                 <summary>Optional: start the bridge at login</summary>
@@ -2689,7 +2732,7 @@ esptool.py --chip esp32p4 -p /dev/cu.usbmodemXXXX flash_id</code></pre>
                 </div>
                 <pre
                   tabindex="0"
-                ><code>idf.py -C firmware/idf -p /dev/cu.usbmodemXXXX monitor</code></pre>
+                ><code>idf.py -C firmware/idf -p /dev/cu.wchusbserialXXXX monitor</code></pre>
                 <p class="success">
                   <strong>Success:</strong> Expect “seesaw hardware 0x87,
                   product 4991”. Exit with Ctrl+]. Older silicon needs the step
@@ -4655,12 +4698,15 @@ esptool.py --chip esp32p4 -p /dev/cu.usbmodemXXXX flash_id</code></pre>
                     <dt>Likely cause</dt>
                     <dd>
                       Wrong socket, cable without data, or unverified CH343P
-                      driver behavior.
+                      driver behavior. On the first board a link cable without
+                      a working data path showed no device at all.
                     </dd>
                     <dt>Check</dt>
                     <dd>
                       Compare serial-port listings before and after connecting.
-                      Read USB vs USB TO UART on the silkscreen.
+                      Read USB vs USB TO UART on the silkscreen. USB TO UART
+                      appeared as <code>/dev/cu.wchusbserial…</code> on the
+                      first board, USB as <code>/dev/cu.usbmodem…</code>.
                     </dd>
                     <dt>Fix / next action</dt>
                     <dd>
