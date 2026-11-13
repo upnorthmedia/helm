@@ -16,12 +16,16 @@ Do this before the board arrives. From [`firmware/idf/README.md`](../../firmware
 
 ```sh
 git clone -b v5.5.6 --depth 1 --recursive --shallow-submodules https://github.com/espressif/esp-idf.git ~/.cache/helm-esp-idf/esp-idf-v5.5.6
-IDF_TOOLS_PATH=~/.cache/helm-esp-idf/tools ~/.cache/helm-esp-idf/esp-idf-v5.5.6/install.sh esp32p4
+export IDF_TOOLS_PATH=~/.cache/helm-esp-idf/tools
+~/.cache/helm-esp-idf/esp-idf-v5.5.6/install.sh esp32p4
 
 # each new shell (same python3 as install.sh used):
-IDF_TOOLS_PATH=~/.cache/helm-esp-idf/tools . ~/.cache/helm-esp-idf/esp-idf-v5.5.6/export.sh
+export IDF_TOOLS_PATH=~/.cache/helm-esp-idf/tools
+. ~/.cache/helm-esp-idf/esp-idf-v5.5.6/export.sh
 idf.py -C firmware/idf build
 ```
+
+Keep `export IDF_TOOLS_PATH=...` on its own line: in zsh, `IDF_TOOLS_PATH=... . export.sh` on one line does not reach the sourced script, which then falls back to `~/.espressif`.
 
 The first build downloads the board package and LVGL into `firmware/idf/managed_components/` and takes about a minute.
 
@@ -30,13 +34,15 @@ The first build downloads the board package and LVGL into `firmware/idf/managed_
 Nothing on the header yet. Use the board alone.
 
 1. **Find the two USB-C receptacles** on the board's short edge: "USB TO UART" (flashing and the log console, through the CH343P) is the one nearer the RESET, BOOT, and POWER buttons, and "USB" (the ESP32-P4's native port, the Helm link) the one nearer the 40-pin header. Confirm on the silkscreen ([wiring.md check 1](wiring.md#verify-on-the-real-board)).
-2. **Plug "USB TO UART" into the Mac.** Check the board powers on by itself ([wiring.md check 5](wiring.md#verify-on-the-real-board)); if the screen stays dark, press POWER once and note it. List serial ports before and after (`ls /dev/cu.*`) to learn its name. The CH343P may show up as `/dev/cu.usbmodem*` or under another name, and whether macOS needs a WCH driver for it is unverified.
-3. **Read the chip revision and flash size:**
+2. **Plug "USB TO UART" into the Mac.** Check the board powers on by itself ([wiring.md check 5](wiring.md#verify-on-the-real-board)); if the screen stays dark, press POWER once and note it. List serial ports before and after (`ls /dev/cu.*`) to learn its name. On the first board the CH343P showed up as `/dev/cu.wchusbserial<serial>`; whether that name depends on WCH's macOS driver was not checked. A `/dev/cu.usbmodem*` name is the native "USB" port (step 1.3), not this one.
+3. **Read the chip revision and flash size** in the shell where you ran `export.sh`, so these use ESP-IDF's own esptool (4.13.0 with v5.5.6). On the first board a separately installed esptool 5.2.0 read the revision but stopped on `flash_id` with "The chip stopped responding".
 
    ```sh
-   esptool.py --chip esp32p4 -p /dev/cu.usbmodemXXXX chip_id
-   esptool.py --chip esp32p4 -p /dev/cu.usbmodemXXXX flash_id
+   esptool.py --chip esp32p4 -p /dev/cu.wchusbserialXXXX chip_id
+   esptool.py --chip esp32p4 -p /dev/cu.wchusbserialXXXX flash_id
    ```
+
+   The first board read revision v3.2 and 32 MB of flash.
 
    If the revision is older than v3.0, build with the extra defaults file in its own build directory:
 
@@ -49,7 +55,7 @@ Nothing on the header yet. Use the board alone.
 4. **Flash and watch the log:**
 
    ```sh
-   idf.py -C firmware/idf -p /dev/cu.usbmodemXXXX flash monitor
+   idf.py -C firmware/idf -p /dev/cu.wchusbserialXXXX flash monitor
    ```
 
    Quit the monitor with Ctrl+].
@@ -58,7 +64,7 @@ Nothing on the header yet. Use the board alone.
 
 ### 1.3 Plug in the link port
 
-Plug **"USB"** into the Mac as well (both cables at once are fine; each port powers the board through its own ideal diode). A new `/dev/cu.usbmodem*` appears: that is the Helm link, a CDC-ACM device named "Helm deck". Note which name is which: the bridge must use "USB". Then unplug "USB TO UART" and confirm "USB" alone powers the board.
+Plug **"USB"** into the Mac as well (both cables at once are fine; each port powers the board through its own ideal diode). A new `/dev/cu.usbmodem*` appears (`/dev/cu.usbmodem1234561` on the first board): that is the Helm link, a CDC-ACM device named "Helm deck". Note which name is which: the bridge must use "USB", the `usbmodem` one, not the `wchusbserial` flashing port. If no new port appears at all, suspect the cable before the board: swap in the flashing cable, which you know carries data. On the first board, the first link cable showed no device until it was swapped. Then unplug "USB TO UART" and confirm "USB" alone powers the board.
 
 ### 1.4 Point the bridge at the board
 
@@ -89,7 +95,7 @@ If "USB" misbehaves, **Helm deck > Link to the Mac > UART0** moves the link to "
 4. **Knob:** pin 2 (3V3) to VIN, pin 4 (SDA) to SDA, pin 6 (SCL) to SCL, GND to the blue rail. **VIN on 3V3, not 5V.**
 5. **Stick:** 5VDC to the red rail, GND to the blue rail, pin 15 (GPIO21) to DIN for now (the key lights go in front of it in step 1.6).
 6. **Knob cap:** check the 5880's shaft is the 6 mm D-shaft its datasheet shows, push the DROK knob onto it, and tighten its set screw.
-7. **Power up** with both cables and watch the monitor (`idf.py -C firmware/idf -p /dev/cu.usbmodemXXXX monitor`): expect "seesaw hardware 0x87, product 4991". Turn the knob: clockwise moves down the list (else set **Helm deck > Knob (Adafruit 5880 I2C encoder) > Reverse the turn direction**). Press opens; a 0.8 s press mutes, and the knob's own light goes red.
+7. **Power up** with both cables and watch the monitor (`idf.py -C firmware/idf -p /dev/cu.wchusbserialXXXX monitor`): expect "seesaw hardware 0x87, product 4991". Turn the knob: clockwise moves down the list (else set **Helm deck > Knob (Adafruit 5880 I2C encoder) > Reverse the turn direction**). Press opens; a 0.8 s press mutes, and the knob's own light goes red.
 8. **Light bar:** with the key lights not yet in the chain, the first four colors the firmware sends land on the stick's first four LEDs; that is expected until step 1.6. Check the bar is not flickering ([wiring.md check 12](wiring.md#verify-on-the-real-board)).
 
 ### 1.6 Keys and hold-to-confirm

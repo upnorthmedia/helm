@@ -2,7 +2,7 @@
 
 The firmware for the Waveshare ESP32-P4-WIFI6-Touch-LCD-5 (5 inch, 720 x 1280 touch), turned landscape to 1280 x 720 as the v2 case mounts it. It speaks the Harness frame to the bridge over USB, runs the deck logic from `firmware/core`, and draws the Home, List, Detail, Confirm, Result, and link-unknown screens laid out like `sim/render.py`. It drives the four MX key switches and their lights, the I2C knob and its light, the 8-light bar, and the chime through the board's speaker output (see [Keys, knob, lights, and chime](#keys-knob-lights-and-chime)). None of those parts is needed: with none fitted the board works alone from touch, with four on-screen keys and swipe, tap, and long-press gestures.
 
-Nothing here has run on the real board. It builds, the screens were rendered on the Mac through the same LVGL and compared with the simulator (see [How it was checked](#how-it-was-checked)), and every pin, port, and timing assumption is listed under [Verify on the board](#verify-on-the-board).
+One board has run it so far, on the bench with nothing on the header: it flashed, booted to the link-unknown screen, and talked to the bridge over the native USB port. Beyond that, it builds, the screens were rendered on the Mac through the same LVGL and compared with the simulator (see [How it was checked](#how-it-was-checked)), and every pin, port, and timing assumption is listed under [Verify on the board](#verify-on-the-board), with the checks that board passed marked.
 
 **The 4 inch board is no longer a build target.** v1's Waveshare ESP32-P4-WIFI6-Touch-LCD-4B needs its own board package, which defines the same `bsp_*` functions as this one, and its own 720 x 720 layout, so one tree cannot build both without carrying two board layers and two sets of screens. The last firmware for it is on main at commit `b2f7670`.
 
@@ -44,21 +44,25 @@ Install ESP-IDF v5.5.6 anywhere you like (it does not need to be system wide). F
 
 ```sh
 git clone -b v5.5.6 --depth 1 --recursive --shallow-submodules https://github.com/espressif/esp-idf.git ~/.cache/helm-esp-idf/esp-idf-v5.5.6
-IDF_TOOLS_PATH=~/.cache/helm-esp-idf/tools ~/.cache/helm-esp-idf/esp-idf-v5.5.6/install.sh esp32p4
+export IDF_TOOLS_PATH=~/.cache/helm-esp-idf/tools
+~/.cache/helm-esp-idf/esp-idf-v5.5.6/install.sh esp32p4
 ```
 
-`export.sh` looks for the Python environment `install.sh` made for the `python3` on the PATH, so run both with the same `python3` (this was built with 3.13). Then:
+`export.sh` looks for the Python environment `install.sh` made for the `python3` on the PATH, so run both with the same `python3` (this was built with 3.13). Then, in each new shell:
 
 ```sh
-IDF_TOOLS_PATH=~/.cache/helm-esp-idf/tools . ~/.cache/helm-esp-idf/esp-idf-v5.5.6/export.sh
+export IDF_TOOLS_PATH=~/.cache/helm-esp-idf/tools
+. ~/.cache/helm-esp-idf/esp-idf-v5.5.6/export.sh
 idf.py -C firmware/idf build
 ```
+
+Set `IDF_TOOLS_PATH` with `export` on its own line. In zsh, `IDF_TOOLS_PATH=... . export.sh` on one line does not pass the variable into the sourced script, which then falls back to `~/.espressif`.
 
 The first build downloads the components into `firmware/idf/managed_components/` (ignored by git) and takes a few minutes on an M-series Mac. A tree that built the 4 inch firmware still has that board's components there: delete `firmware/idf/managed_components/` and `firmware/idf/sdkconfig` before the first LCD-5 build. After changing `main/Kconfig.projbuild` or `sdkconfig.defaults`, run `idf.py reconfigure` (or delete `firmware/idf/sdkconfig`) so the new options are picked up. Settings live in `idf.py menuconfig` under **Helm deck**.
 
 CI (`.github/workflows/tests.yml`, job `firmware-idf`) builds the default configuration, which has every hardware part on, and one with every alternative (`sdkconfig.p4-rev1` and `sdkconfig.ci-alt`: the UART link, the 90 degree rotation, no on-screen keys, key switches, lights, and chime off, the knob reversed at 0x37) in Espressif's `espressif/idf:v5.5.6` image.
 
-**Chip revision.** ESP-IDF 5.5 builds for ESP32-P4 silicon v3.1 and newer by default, and those builds do not run on v0.x or v1.x chips (and the reverse). Waveshare's LCD-5 LVGL example targets v3.0 and newer (`CONFIG_ESP32P4_REV_MIN_300`), and its `docs/IO.md` mentions both "rev1.3 and rev3.x" silicon, so a given board's revision is not known until it is here: `esptool.py --chip esp32p4 chip_id` prints it. For a chip older than v3.0:
+**Chip revision.** ESP-IDF 5.5 builds for ESP32-P4 silicon v3.1 and newer by default, and those builds do not run on v0.x or v1.x chips (and the reverse). Waveshare's LCD-5 LVGL example targets v3.0 and newer (`CONFIG_ESP32P4_REV_MIN_300`), and its `docs/IO.md` mentions both "rev1.3 and rev3.x" silicon, so a given board's revision is not known until it is here: `esptool.py --chip esp32p4 chip_id` prints it (the first board read v3.2, which takes the default build). For a chip older than v3.0:
 
 ```sh
 idf.py -C firmware/idf -B build/idf-rev1 -D SDKCONFIG="$PWD/build/idf-rev1/sdkconfig" \
@@ -69,7 +73,11 @@ This keeps its own `sdkconfig` beside its own build directory. Defaults files on
 
 **PSRAM speed.** Waveshare's example runs the PSRAM at 250 MHz, which ESP-IDF 5.5 offers only with `CONFIG_IDF_EXPERIMENTAL_FEATURES`. Helm keeps the 200 MHz setting v1 used.
 
-**Flashing** (not done yet, no board on hand) goes through the "USB TO UART" connector, the CH343P: `idf.py -C firmware/idf -p /dev/cu.usbmodemXXXX flash monitor`. The schematic's "USB to UART" block has the usual auto-reset pair (an EMH4T2R: RTS drives EN, DTR drives GPIO35, the BOOT strap), so flashing needs no button press. That matters in the v2 case, where BOOT and RESET sit on the module's long edge inside the case.
+**Flashing** goes through the "USB TO UART" connector, the CH343P: `idf.py -C firmware/idf -p /dev/cu.wchusbserialXXXX flash monitor`. On the first board macOS named that port `/dev/cu.wchusbserial<serial>` (whether that name depends on WCH's driver being installed was not checked). The native port, the Helm link, shows up as `/dev/cu.usbmodem*` (`/dev/cu.usbmodem1234561` on that board), so `wchusbserial` is the flashing port and `usbmodem` the link.
+
+Run esptool from the ESP-IDF environment (after `export.sh`), not a separately installed one. On the first board a standalone esptool 5.2.0 read the chip revision but stopped on `flash_id` after loading its stub ("The chip stopped responding"), while ESP-IDF's bundled esptool 4.13.0 read the flash as 32 MB.
+
+The schematic's "USB to UART" block has the usual auto-reset pair (an EMH4T2R: RTS drives EN, DTR drives GPIO35, the BOOT strap), so flashing needs no button press. That matters in the v2 case, where BOOT and RESET sit on the module's long edge inside the case.
 
 ## The USB-C ports
 
@@ -177,6 +185,7 @@ Pins the board itself uses (`io.c` fails the build if a Helm pin setting names o
 ## How it is put together
 
 - `main/main.c`: one deck task owns the `helm_deck_t` (the core is single-threaded). Every 20 ms at most it reads the link, applies queued touch input, polls the controls, runs `helm_deck_tick`, updates the lights and chime, and redraws under the display lock. Touch handlers run in the LVGL task and only queue input.
+- The display lock is `display_lock()` in `main.c`, which calls `esp_lv_adapter_lock()` and checks for `ESP_OK`. Do not replace it with the board package's `bsp_display_lock()`: in 1.0.4 that returns the adapter's `esp_err_t` as a `bool`, so it reads false when it took the lock and true when it did not. Trusting it left the first board's screen white, with the UI never built, the lock never released, and the task watchdog firing in `lv_obj_clean`. Releasing through `bsp_display_unlock()` is fine.
 - `main/link.h`: the byte link, `link_usb.c` or `link_uart.c`. Writes never block for more than 100 ms and drop a frame nobody is reading, as `helm/wire/transport.py` does. Over USB a frame is queued only once all of it fits, so a slow host never gets half a frame in front of the next one.
 - `main/ui.c`: the screens and touch.
 - `main/io.c`: the key switches, knob, light chain, and chime, on the portable logic in `firmware/core`.
@@ -188,18 +197,21 @@ Pins the board itself uses (`io.c` fails the build if a Helm pin setting names o
 - The pin check: setting `HELM_PIN_KEY_YES` back to 2 fails the build with "A key switch pin is one the board already uses", and evaluating `BOARD_PIN` for GPIO0 to 54 leaves exactly the J3 general pins listed above.
 - `ui.c` and the core were compiled on the Mac against the same LVGL 9.5.0 sources, with a 1280 x 720 buffer standing in for the turned panel, and fed the simulator's fixture models as real frames from `helm/wire`, driven through the same knob, key, and tick steps `sim/snapshot.py` uses. All twelve screens in `docs/sim/` (Home, calm, context near the limit, link unknown, project view, away, Mac locked, List, project List, Detail, Confirm, Result) were compared side by side with the simulator's and match in layout and content; the fonts differ as listed above. The same screens with the on-screen keys on were checked for fit. That harness is not in the repo. The three answer screens added after it (List with answers out, Result seen, Result not picked up) were not run through it: `ui.c` draws them from the same positions and strings as `sim/render.py`, and both builds compile.
 - The light colors, debounce, knob presses, chime tone, and the knob's seesaw driver are covered by the host tests in `firmware/test/test_core.c`.
-- Not checked: anything on the real board. The rotation, the touch mapping, the USB link, the display and touch bring-up, the key switches, knob, lights, chime, and timing are untested. The touch handling was not re-run through a scripted pointer for the new layout; the tap targets come from the same row constants the drawing uses.
+- On the first board (chip revision v3.2, 32 MB flash), the bench bring-up with nothing on the header: the default build flashed through the CH343P, booted to the link-unknown screen, enumerated on the native port as a CDC-ACM device named "Helm deck", sent device hello to the bridge, and showed "no word from the bridge for 10 s" after the bridge stopped.
+- Not checked on the real board: the rotation, the touch mapping, the key switches, knob, lights, chime, and timing other than the 10 s message. The touch handling was not re-run through a scripted pointer for the new layout; the tap targets come from the same row constants the drawing uses.
 
 ## Verify on the board
+
+Checks marked "Seen on the first board" were observed during the first bench bring-up; the rest are still open.
 
 Ports and silicon:
 
 1. Which USB-C receptacle is H2 ("Type-C", the wiki's "USB OTG") and which H1 ("Type-C UART", "USB TO UART"): read the silkscreen. The case's back-wall jack goes to H2.
-2. H2 enumerates on the Mac as a CDC-ACM device, `/dev/cu.usbmodem*`, and the bridge opens it (`python3 -m helm.bridge --port /dev/cu.usbmodemXXXX`) and logs `device hello: fw=helm-idf-0.1 caps=screen-1280x720,...`.
+2. H2 enumerates on the Mac as a CDC-ACM device, `/dev/cu.usbmodem*`, and the bridge opens it (`python3 -m helm.bridge --port /dev/cu.usbmodemXXXX`) and logs `device hello: fw=helm-idf-0.1 caps=screen-1280x720,...`. Seen on the first board: H2 came up as `/dev/cu.usbmodem1234561`, product "Helm deck", and the bridge logged device hello.
 3. H2 alone powers the board, and both cables together cause no trouble.
 4. `idf.py flash` through H1 resets into the bootloader and back without touching BOOT or RESET (the auto-reset pair).
-5. The chip revision (`esptool.py --chip esp32p4 chip_id`); add `sdkconfig.p4-rev1` if it is older than v3.0.
-6. Flash is 32 MB (`esptool.py flash_id`, a GD25Q256) and the 200 MHz PSRAM setting works.
+5. The chip revision (`esptool.py --chip esp32p4 chip_id`); add `sdkconfig.p4-rev1` if it is older than v3.0. Seen on the first board: v3.2.
+6. Flash is 32 MB (`esptool.py flash_id`, a GD25Q256) and the 200 MHz PSRAM setting works. Seen on the first board: 32 MB flash.
 
 Display and touch:
 
@@ -226,5 +238,5 @@ Timing:
 
 22. The 1 s hold feels right with the deck task's 20 ms loop and 33 ms redraws.
 23. Swipe step (48 px), drag threshold (12 px), and long press (0.8 s) suit the 5 inch glass.
-24. The deck sees a model within 2 s of the bridge starting and drops to "no word from the bridge for 10 s" when it stops.
+24. The deck sees a model within 2 s of the bridge starting and drops to "no word from the bridge for 10 s" when it stops. Seen on the first board: the 10 s message after the bridge stopped.
 25. A frame written while the Mac is not reading is dropped after 100 ms rather than stalling the deck.
