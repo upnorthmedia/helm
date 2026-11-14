@@ -11,6 +11,8 @@
 #include <stdio.h>
 
 #include "bsp/esp-bsp.h"
+#include "esp_lcd_io_i2c.h"
+#include "esp_lcd_touch_gt911.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
@@ -31,6 +33,7 @@ static const char *TAG = "helm";
 #define KEY_INPUT_WAIT_MS 500 /* longest a key input waits for room in the queue */
 #define DECK_TASK_STACK (12 * 1024)
 #define DECK_TASK_PRIORITY 5
+#define TOUCH_I2C_TIMEOUT_MS 50 /* one touch read; a few register bytes take well under 1 ms */
 
 /* What this deck has, for hello: the screen and touch, then whatever io_start
  * brought up (keys-4 always, on screen or as switches; knob, lightbar-8, chime). */
@@ -39,6 +42,56 @@ static size_t s_cap_count = 2;
 
 static helm_deck_t s_deck; /* about 31 KB: static, not on a stack */
 static QueueHandle_t s_inputs;
+
+/*
+ * The board package creates its GT911 touch device without an I2C timeout,
+ * which esp_lcd treats as waiting forever. If a touch read is NACKed while
+ * another device on the shared bus holds SCL low, ESP-IDF 5.5.6 then spins in
+ * the LVGL task with the LVGL lock held until the bus frees, and the screen
+ * freezes for good (the bench saw this with the knob wired). Swap in a touch
+ * device that gives up after TOUCH_I2C_TIMEOUT_MS, so a stall costs a few
+ * touch reads instead. On any failure the board package's touch stays.
+ */
+static void touch_replace(lv_display_t *display, const bsp_display_cfg_t *cfg)
+{
+    i2c_master_bus_handle_t bus = bsp_i2c_get_handle();
+    esp_lcd_panel_io_i2c_config_t io_cfg = ESP_LCD_TOUCH_IO_I2C_GT911_CONFIG();
+    if (i2c_master_probe(bus, io_cfg.dev_addr, TOUCH_I2C_TIMEOUT_MS) != ESP_OK) {
+        io_cfg.dev_addr = ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS_BACKUP; /* as the board package looks */
+    }
+    io_cfg.scl_speed_hz = CONFIG_BSP_I2C_CLK_SPEED_HZ;
+    io_cfg.transaction_timeout_ms = TOUCH_I2C_TIMEOUT_MS;
+    const esp_lcd_touch_config_t tp_cfg = {
+        .x_max = BSP_LCD_H_RES,
+        .y_max = BSP_LCD_V_RES,
+        .rst_gpio_num = GPIO_NUM_NC, /* as the board package has them: no reset or interrupt line */
+        .int_gpio_num = GPIO_NUM_NC,
+        .flags = {
+            .swap_xy = cfg->touch_flags.swap_xy,
+            .mirror_x = cfg->touch_flags.mirror_x,
+            .mirror_y = cfg->touch_flags.mirror_y,
+        },
+    };
+    esp_lcd_panel_io_handle_t io = NULL;
+    esp_lcd_touch_handle_t touch = NULL;
+    esp_err_t err = esp_lcd_new_panel_io_i2c(bus, &io_cfg, &io);
+    if (err == ESP_OK) {
+        err = esp_lcd_touch_new_i2c_gt911(io, &tp_cfg, &touch);
+    }
+    if (err == ESP_OK) {
+        err = esp_lv_adapter_unregister_touch(bsp_display_get_input_dev());
+    }
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "touch without a read timeout: %s", esp_err_to_name(err));
+        return;
+    }
+    const esp_lv_adapter_touch_config_t touch_cfg = ESP_LV_ADAPTER_TOUCH_DEFAULT_CONFIG(display, touch);
+    if (esp_lv_adapter_register_touch(&touch_cfg) == NULL) {
+        ESP_LOGE(TAG, "touch did not register; the screen takes no touch");
+        return;
+    }
+    ESP_LOGI(TAG, "touch at I2C 0x%02x, reads time out after %d ms", (unsigned)io_cfg.dev_addr, TOUCH_I2C_TIMEOUT_MS);
+}
 
 /*
  * Start the screen and touch turned landscape: the panel is 720 x 1280
@@ -66,7 +119,11 @@ static lv_display_t *display_start(void)
     cfg.touch_flags.mirror_x = 1;
     cfg.touch_flags.swap_xy = 1;
 #endif
-    return bsp_display_start_with_config(&cfg);
+    lv_display_t *display = bsp_display_start_with_config(&cfg);
+    if (display != NULL) {
+        touch_replace(display, &cfg);
+    }
+    return display;
 }
 
 /*

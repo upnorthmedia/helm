@@ -376,11 +376,12 @@ dependencies:
     - esp32p4
     version: 2.1.0
 direct_dependencies:
+- espressif/esp_lcd_touch_gt911
 - espressif/esp_tinyusb
 - espressif/led_strip
 - idf
 - lvgl/lvgl
 - waveshare/esp32_p4_wifi6_touch_lcd_5
-manifest_hash: ba1e181928a4b63559be747577252f91ea1dddeaf80d67491a8934e6cc687928
+manifest_hash: 4408caf972f52e619840a863411da9792f7b38877a8b2f1b875da099c510ccc5
 target: esp32p4
 version: 2.0.0
