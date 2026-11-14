@@ -59,13 +59,16 @@ static const char *TAG = "io";
 #endif
 #endif
 
-static const char *s_caps[3];
+/* One slot for each name io_start can add: keys-4, knob, lightbar-8, chime. */
+static const char *s_caps[4];
 static size_t s_cap_count;
 
 static void add_cap(const char *cap)
 {
     if (s_cap_count < sizeof s_caps / sizeof s_caps[0]) {
         s_caps[s_cap_count++] = cap;
+    } else {
+        ESP_LOGE(TAG, "no room for cap %s; hello leaves it out", cap);
     }
 }
 

@@ -3,6 +3,9 @@ dependencies:
   # Waveshare's board package: display (HX8394 over MIPI DSI), touch (GT911),
   # LVGL through esp_lvgl_adapter, audio, and the board's pin map.
   waveshare/esp32_p4_wifi6_touch_lcd_5: "==1.0.4"
+  # The GT911 touch driver the board package uses (1.2.1 in the lock), named
+  # here so main.c can create the touch device with a read timeout.
+  espressif/esp_lcd_touch_gt911: "~1.2.1"
   # USB CDC-ACM device on the P4's native USB (the board's "USB OTG" port).
   espressif/esp_tinyusb: "~2.4.0"
   # The light chain (4 key lights, then the 8-light bar) over RMT.
