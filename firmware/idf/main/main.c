@@ -8,6 +8,7 @@
  */
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "bsp/esp-bsp.h"
 #include "esp_log.h"
@@ -76,6 +77,17 @@ static lv_display_t *display_start(void)
 static bool display_lock(int32_t timeout_ms)
 {
     return esp_lv_adapter_lock(timeout_ms) == ESP_OK;
+}
+
+/* The caps as hello sends them, so the console shows what the bridge will log. */
+static void log_caps(void)
+{
+    char line[96] = "";
+    size_t used = 0;
+    for (size_t i = 0; i < s_cap_count && used < sizeof line; i++) {
+        used += (size_t)snprintf(line + used, sizeof line - used, "%s%s", i > 0 ? "," : "", s_caps[i]);
+    }
+    ESP_LOGI(TAG, "hello caps: %s", line);
 }
 
 static uint32_t now_ms(void)
@@ -209,6 +221,7 @@ void app_main(void)
     }
 
     s_cap_count += io_caps(s_caps + s_cap_count, sizeof s_caps / sizeof s_caps[0] - s_cap_count);
+    log_caps();
     const helm_deck_config_t cfg = {FIRMWARE, s_caps, s_cap_count, emit, NULL};
     helm_deck_init(&s_deck, &cfg);
     ESP_ERROR_CHECK(link_start());
