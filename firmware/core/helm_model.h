@@ -13,7 +13,7 @@
  * (a bool is never an int), and enum values. Unknown keys are ignored, and the
  * fields added after the first release (link.away, link.mac_locked,
  * item.project, item.pending, result.seen, result.waited_s, result.stalled,
- * usage, context) are optional, so this parser and an older or newer bridge still agree. Integers
+ * usage, context, proto) are optional, so this parser and an older or newer bridge still agree. Integers
  * must fit their C field (int64 for seq, int32 elsewhere), which is narrower
  * than Python's unbounded int but far beyond anything the bridge sends.
  */
@@ -36,6 +36,13 @@ extern "C" {
  * this bound against the Python encoder).
  */
 #define HELM_MAX_ITEMS 80u
+
+/*
+ * The wire protocol this core speaks (PROTOCOL in helm/contract.py): hello
+ * sends it, and a model names the bridge's. Information only; neither side
+ * refuses the other for a different number.
+ */
+#define HELM_PROTOCOL 1
 #define HELM_STRING_POOL_BYTES HELM_FRAME_MAX_PAYLOAD
 
 typedef uint16_t helm_str_t; /* offset into helm_model_t.strings */
@@ -149,6 +156,7 @@ typedef struct {
     bool chime; /* play one chime for this model, once */
     helm_usage_t usage;
     helm_context_t context;
+    helm_opt_int_t proto; /* the bridge's protocol; unknown from a bridge before protocol numbers */
     uint16_t strings_used;
     char strings[HELM_STRING_POOL_BYTES];
 } helm_model_t;

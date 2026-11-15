@@ -8,7 +8,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Optional
 
-from helm.contract import (Context, Counts, Hello, Key, Knob, KnobPress, Link, Model, Result, Resync, Seen, Select,
+from helm.contract import (PROTOCOL, Context, Counts, Hello, Key, Knob, KnobPress, Link, Model, Result, Resync, Seen, Select,
                            Transport)
 from helm.bridge.attention import Attention
 from helm.bridge.context import context_gauge
@@ -353,7 +353,12 @@ class Bridge:
         now = self.clock() if now is None else now
         if isinstance(event, Hello):
             self.hello = event
-            log.info("device hello: fw=%s caps=%s", event.fw, ",".join(event.caps))
+            log.info("device hello: fw=%s proto=%s caps=%s", event.fw,
+                     "none" if event.proto is None else event.proto, ",".join(event.caps))
+            if event.proto != PROTOCOL:
+                # Information only: the optional-field rules keep both sides working; update the older one.
+                log.warning("the deck speaks protocol %s, this bridge %d",
+                            "none (from before protocol numbers)" if event.proto is None else event.proto, PROTOCOL)
             self._last_sent = None  # send the full model right away
             return
         if isinstance(event, Resync):

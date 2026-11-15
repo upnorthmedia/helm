@@ -1021,6 +1021,12 @@ static helm_parse_status_t parse_top(reader_t *r, helm_model_t *m)
             if (present) {
                 TRY(parse_context(r, &m->context));
             }
+        } else if (strcmp(key, "proto") == 0) {
+            int64_t v = 0;
+            present = false;
+            TRY(field_int(r, 0, INT32_MAX, &v, &present));
+            m->proto.known = present;
+            m->proto.value = present ? (int32_t)v : 0;
         } else {
             TRY(skip_value(r));
         }
@@ -1045,6 +1051,8 @@ helm_parse_status_t helm_model_parse(const uint8_t *json, size_t len, helm_model
     out->has_result = false;
     memset(&out->usage, 0, sizeof out->usage); /* absent: all unknown */
     context_unknown(&out->context);
+    out->proto.known = false; /* absent: a bridge from before protocol numbers */
+    out->proto.value = 0;
     out->strings_used = 0;
     return parse_top(&r, out);
 }

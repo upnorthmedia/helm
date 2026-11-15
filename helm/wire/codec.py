@@ -176,7 +176,19 @@ def _model_from(obj: dict[str, Any]) -> c.Model:
         chime=_get(obj, "chime", bool),
         usage=_usage_from(obj),
         context=_context_from(obj),
+        proto=_proto_from(obj),
     )
+
+
+PROTO_MAX = 2**31 - 1  # the device keeps it in an int32
+
+
+def _proto_from(obj: dict[str, Any]) -> int | None:
+    """Absent or null is None: a peer from before protocol numbers."""
+    value = _get(obj, "proto", int, optional=True)
+    if value is not None and not 0 <= value <= PROTO_MAX:
+        raise DecodeError(f"'proto' is {value}, outside 0 to {PROTO_MAX}")
+    return value
 
 
 # Inclusive bounds for each usage field. Left is a percentage; a reset is
@@ -230,7 +242,8 @@ def _event_from(obj: dict[str, Any]) -> c.Event:
         caps = _get(obj, "caps", list)
         if not all(isinstance(cap, str) for cap in caps):
             raise DecodeError("caps must be strings")
-        return c.Hello(fw=_get(obj, "fw", str), caps=list(caps), product=_get(obj, "product", str))
+        return c.Hello(fw=_get(obj, "fw", str), caps=list(caps), product=_get(obj, "product", str),
+                       proto=_proto_from(obj))
     if tag == "key":
         return c.Key(key=_enum(obj, "key", ACTIONS), phase=_enum(obj, "phase", KEY_PHASES),
                      ref=_get(obj, "ref", str, optional=True))

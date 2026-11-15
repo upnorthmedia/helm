@@ -4,7 +4,7 @@ import time
 import unittest
 from pathlib import Path
 
-from helm.contract import Context, Hello, Key, Knob, Resync, Seen, Select, Usage
+from helm.contract import PROTOCOL, Context, Hello, Key, Knob, Resync, Seen, Select, Usage
 from helm.bridge.bridge import READY_INBOX_AGE, STALL_AFTER_S, Bridge, note_stalled
 from helm.bridge.intents import IntentExecutor
 from helm.bridge.usage import UsagePoller
@@ -121,6 +121,27 @@ class BridgeTest(unittest.TestCase):
         self.assertEqual(len(self.executor.dry_log), 1)
         self.assertIn("held to confirm: YES on `alpha-fix` / `merge-alpha-12`", self.executor.dry_log[0])
         self.assertEqual(self.runner.calls_for("fm-inbox.sh", "note"), [])
+
+    def test_a_deck_from_before_protocol_numbers_still_answers(self):
+        """Its hello has no proto: the bridge logs the difference and acts on its keys as before."""
+        self.bridge.tick(self.now)
+        ref = "decision|primary|alpha-fix|merge-alpha-12"
+        with self.assertLogs("helm.bridge.bridge", "INFO") as logs:
+            self.bridge.handle(Hello("helm-idf-0.1", ["screen-1280x720"], proto=None), self.now)
+        self.assertIn("proto=none", logs.output[0])
+        self.assertIn("from before protocol numbers", logs.output[1])
+        for event in (Key("yes", "down", ref), Key("yes", "held", ref), Key("yes", "up", ref)):
+            self.bridge.handle(event, self.now)
+        model = self.advance(0.1)
+        self.assertEqual(model.result.state, "queued")
+        self.assertEqual(len(self.executor.dry_log), 1)
+        self.assertEqual(model.proto, PROTOCOL)
+
+    def test_a_deck_on_this_protocol_logs_no_warning(self):
+        with self.assertLogs("helm.bridge.bridge", "INFO") as logs:
+            self.bridge.handle(Hello("helm-idf-0.2", ["touch"]), self.now)
+        self.assertEqual(len(logs.output), 1)
+        self.assertIn("proto=%d" % PROTOCOL, logs.output[0])
 
     def set_head(self, url, head):
         path = self.primary / "state" / "home-summary.json"
