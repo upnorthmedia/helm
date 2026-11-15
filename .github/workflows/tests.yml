@@ -87,6 +87,31 @@ jobs:
       - name: Contract tests against the pinned firstmate
         run: scripts/test-firstmate-contract.sh
 
+  # The deck's screens drawn by the firmware's own ui.c under LVGL 9.5.0 on the
+  # runner, and compared with the simulator's within the tolerances
+  # sim/parity.py states (text is masked: the fonts differ on purpose). Each
+  # screen's images and their differences are kept with the run.
+  screens:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      # CI only, pinned; the simulator itself does not need it.
+      - name: Install Pillow
+        run: python3 -m pip install --quiet pillow==12.3.0
+      - name: Firmware screens against the simulator
+        run: scripts/test-screens.sh build/screens
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: screens
+          path: build/screens/
+          if-no-files-found: ignore
+
   lint:
     runs-on: ubuntu-latest
     steps:

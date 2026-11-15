@@ -36,9 +36,12 @@ python3 -m unittest discover -s tests -t .   # bridge, simulator, wire, scripts
 scripts/test-firmware.sh                      # firmware core: C tests under ASan and UBSan, then cross-tests
 scripts/check-hygiene.sh                      # public repository hygiene (below)
 scripts/test-firstmate-contract.sh            # the bridge against a real firstmate (needs git, jq, network)
+scripts/test-screens.sh                       # firmware screens against the simulator (needs cmake, git, Pillow)
 ```
 
 `scripts/test-firstmate-contract.sh` fetches firstmate at the commit pinned in the script and runs `tests/test_firstmate_contract.py` against it: firstmate's own summary producer and inbox, in a temporary home, under Helm's bridge. Run it when you change what the bridge reads from firstmate or how it writes notes. A weekly workflow (`firstmate-drift.yml`) runs the same tests against firstmate's main and opens an issue here when they fail; it never blocks a pull request. Bump the pin in a pull request of its own once the tests pass against the new commit.
+
+Run `scripts/test-screens.sh` when you change how a screen looks, in `sim/render.py` or `firmware/idf/main/ui.c`: the two must keep drawing the same screens. It builds the firmware's drawing code against LVGL on your computer and compares each screen with the simulator's, within the tolerances at the top of `sim/parity.py`; the images and their differences land in `build/screens/`.
 
 CI also runs `ruff check`, `shellcheck` on every `*.sh`, `actionlint`, and `reuse lint`, with the versions pinned in [`.github/workflows/tests.yml`](.github/workflows/tests.yml), and the Python suite and scripts on macOS with its stock bash 3.2. Scripts in `scripts/` must run on that bash: no `mapfile`, no associative arrays.
 

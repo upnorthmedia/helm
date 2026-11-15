@@ -3,3 +3,4 @@ __pycache__/
 firmware/build/
 case/.venv/
 todo.md
+/build/
