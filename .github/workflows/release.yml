@@ -1,0 +1,84 @@
+name: release
+
+# A pushed version tag (v0.2.0) builds the deck firmware at that tag and opens
+# a draft GitHub release with the binaries attached. The release stays a draft
+# until someone publishes it by hand, so pushing a tag never publishes
+# anything on its own. Tags are vMAJOR.MINOR.PATCH; see CONTRIBUTING.md.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  firmware:
+    runs-on: ubuntu-latest
+    container: espressif/idf:v5.5.6
+    steps:
+      - name: The tag is a version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          echo "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$' || {
+            echo "::error::release tags look like v0.2.0, not $TAG"
+            exit 1
+          }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # ESP-IDF names the app version with git describe, which needs the tags.
+          fetch-depth: 0
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: Build
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+          idf.py -C firmware/idf -B build/idf build
+      - name: Collect the binaries
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          . "$IDF_PATH/export.sh"
+          scripts/collect-firmware.sh build/idf "dist/helm-deck-$TAG"
+          # The deck reports this version in hello; a release must say exactly its tag.
+          version="$(cat "dist/helm-deck-$TAG/VERSION")"
+          [ "$version" = "$TAG" ] || {
+            echo "::error::the build calls itself $version, not $TAG"
+            exit 1
+          }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: helm-deck-${{ github.ref_name }}
+          path: dist/
+          if-no-files-found: error
+
+  draft:
+    needs: firmware
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the draft release and upload its assets
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: helm-deck-${{ github.ref_name }}
+          path: dist
+      - name: Draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          dir="dist/helm-deck-$TAG"
+          (cd dist && zip -qr "helm-deck-$TAG.zip" "helm-deck-$TAG")
+          cp "$dir/helm-deck.bin" "dist/helm-deck-$TAG.bin"
+          cp "$dir/SHA256SUMS" "dist/SHA256SUMS"
+          notes="Deck firmware $TAG for the Waveshare ESP32-P4-WIFI6-Touch-LCD-5 (chip revision v3.1 or newer). helm-deck-$TAG.bin is the whole flash image, written at 0x0; the zip also holds the separate parts, flash_args, and README.txt with the flash commands. SHA256SUMS covers the zip's files."
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --draft --verify-tag \
+            --title "Helm $TAG" --notes "$notes" \
+            "dist/helm-deck-$TAG.bin" "dist/helm-deck-$TAG.zip" "dist/SHA256SUMS"

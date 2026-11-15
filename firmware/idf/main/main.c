@@ -11,6 +11,7 @@
 #include <stdio.h>
 
 #include "bsp/esp-bsp.h"
+#include "esp_app_desc.h"
 #include "esp_lcd_io_i2c.h"
 #include "esp_lcd_touch_gt911.h"
 #include "esp_log.h"
@@ -27,7 +28,6 @@
 
 static const char *TAG = "helm";
 
-#define FIRMWARE "helm-idf-0.1"
 #define LOOP_MS 20       /* longest wait for bytes; the deck needs a tick at least every 100 ms */
 #define DRAW_EVERY_MS 33 /* about 30 frames a second for the hold bar */
 #define KEY_INPUT_WAIT_MS 500 /* longest a key input waits for room in the queue */
@@ -39,6 +39,11 @@ static const char *TAG = "helm";
  * brought up (keys-4 always, on screen or as switches; knob, lightbar-8, chime). */
 static const char *s_caps[8] = {"screen-1280x720", "touch"};
 static size_t s_cap_count = 2;
+
+/* What hello reports as fw: "helm-idf-" and the app version, which ESP-IDF takes from
+ * `git describe` at build time. A build of a release tag says helm-idf-v0.2.0; any other
+ * build names its commit (helm-idf-v0.2.0-3-gabc1234, or a bare commit with no tag). */
+static char s_firmware[48];
 
 static helm_deck_t s_deck; /* about 31 KB: static, not on a stack */
 static QueueHandle_t s_inputs;
@@ -264,7 +269,8 @@ static void deck_task(void *arg)
 
 void app_main(void)
 {
-    ESP_LOGI(TAG, "%s starting", FIRMWARE);
+    snprintf(s_firmware, sizeof s_firmware, "helm-idf-%s", esp_app_get_description()->version);
+    ESP_LOGI(TAG, "%s starting, wire protocol %d", s_firmware, HELM_PROTOCOL);
     s_inputs = xQueueCreate(32, sizeof(ui_input_t));
     ESP_ERROR_CHECK(s_inputs != NULL ? ESP_OK : ESP_ERR_NO_MEM);
     ESP_ERROR_CHECK(io_start());
@@ -279,7 +285,7 @@ void app_main(void)
 
     s_cap_count += io_caps(s_caps + s_cap_count, sizeof s_caps / sizeof s_caps[0] - s_cap_count);
     log_caps();
-    const helm_deck_config_t cfg = {FIRMWARE, s_caps, s_cap_count, emit, NULL};
+    const helm_deck_config_t cfg = {s_firmware, s_caps, s_cap_count, emit, NULL};
     helm_deck_init(&s_deck, &cfg);
     ESP_ERROR_CHECK(link_start());
     xTaskCreate(deck_task, "deck", DECK_TASK_STACK, NULL, DECK_TASK_PRIORITY, NULL);
