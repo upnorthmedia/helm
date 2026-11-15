@@ -21,12 +21,16 @@ PYTHON=${PYTHON:-python3}
 
 die() { echo "test-firstmate-contract: $*" >&2; exit 2; }
 
+# An inherited repository override would point every git command below (and
+# the tests' own) at that repository instead of the checkout named here.
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+
 [ $# -le 1 ] || die "usage: scripts/test-firstmate-contract.sh [<firstmate ref>]"
 root="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ -n "${HELM_FIRSTMATE:-}" ]; then
   [ $# -eq 0 ] || die "HELM_FIRSTMATE names a checkout already; drop the ref"
-  checkout="$HELM_FIRSTMATE"
+  checkout="$(cd "$HELM_FIRSTMATE" && pwd)" || die "no such directory: $HELM_FIRSTMATE"
 else
   ref="${1:-$FIRSTMATE_PIN}"
   tmp="$(mktemp -d)"

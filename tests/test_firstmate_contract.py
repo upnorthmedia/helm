@@ -36,6 +36,14 @@ from helm.contract import Key
 
 FIRSTMATE = os.environ.get("HELM_FIRSTMATE", "")
 TOOLS = ("bash", "git", "jq")
+# Inherited variables that would aim the lab home's scripts, or git, somewhere real: a firstmate
+# worker exports FM_HOME and friends, and a repository override beats `git -C <dir>`.
+GIT_OVERRIDES = ("GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY",
+                 "GIT_ALTERNATE_OBJECT_DIRECTORIES")
+
+
+def inherited_overrides(environ) -> list[str]:
+    return [k for k in environ if k.startswith("FM_") or k in GIT_OVERRIDES]
 
 # Every key Helm reads from a home summary (helm/bridge/items.py, bridge.py, doctor.py), with the
 # JSON types it accepts. A missing key or another type is drift: Helm would read nothing there.
@@ -130,8 +138,7 @@ class FirstmateContract(unittest.TestCase):
         missing = [tool for tool in TOOLS if shutil.which(tool) is None]
         if missing:
             raise AssertionError("the contract tests need %s on PATH" % ", ".join(missing))
-        # A firstmate worker exports FM_HOME and friends; none may reach the lab home's scripts.
-        cls._saved_env = {k: v for k, v in os.environ.items() if k.startswith("FM_")}
+        cls._saved_env = {k: os.environ[k] for k in inherited_overrides(os.environ)}
         for key in cls._saved_env:
             del os.environ[key]
 
@@ -216,6 +223,11 @@ class FirstmateContract(unittest.TestCase):
     def notes(self) -> list[dict]:
         receipts = json.loads(self.firstmate("fm-inbox.sh", "receipts", "--all-pending", "--all-handled").stdout)
         return (receipts.get("pending") or []) + (receipts.get("handled") or [])
+
+    def test_no_inherited_override_reaches_the_lab(self):
+        self.assertEqual(inherited_overrides(os.environ), [])
+        self.assertEqual(inherited_overrides({"GIT_DIR": "x", "FM_HOME": "y", "GIT_AUTHOR_NAME": "z", "PATH": "p"}),
+                         ["GIT_DIR", "FM_HOME"])
 
     # Schemas.
 

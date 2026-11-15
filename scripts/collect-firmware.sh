@@ -23,8 +23,9 @@ version="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pro
   "$build/project_description.json")"
 [ -n "$version" ] || die "the build names no project version"
 
-# flash_args lists each part by its path under the build directory; keep those paths.
-while read -r offset part; do
+# flash_args lists each part by its path under the build directory; keep those paths
+# (and read a last line that has no newline).
+while read -r offset part || [ -n "$offset" ]; do
   case "$offset" in 0x*) ;; *) continue ;; esac
   mkdir -p "$out/$(dirname "$part")"
   cp "$build/$part" "$out/$part"
