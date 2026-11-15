@@ -221,6 +221,20 @@ class FitTest(unittest.TestCase):
             hits = assembly.interference(assembly.printed_items())
         self.assertIn(("cradle", "harness_trunk"), {(a, b) for a, b, _ in hits})
 
+    def test_breakout_receptacle_is_on_a_long_edge_facing_the_left_wall(self):
+        """The 4090's receptacle is centred on one of its long edges, so with
+        it facing the left wall the board runs front to back, and the
+        ribbon's plug meets the middle of that edge."""
+        from helm_case import assembly
+        from helm_case.printed import PLATE_LOC
+
+        items = {it.name: it for it in assembly.metal_items()}
+        board = items["usb_breakout"].shape.moved(PLATE_LOC.inverse).BoundingBox()
+        plug = items["ribbon_plug_breakout"].shape.moved(PLATE_LOC.inverse).BoundingBox()
+        self.assertGreater(board.ylen, board.xlen)
+        self.assertAlmostEqual(plug.xmax, board.xmin, places=6)
+        self.assertAlmostEqual((plug.ymin + plug.ymax) / 2, (board.ymin + board.ymax) / 2, places=6)
+
     def test_the_harness_plug_fits_under_the_socket(self):
         """The homemade 2 x 10 plug's envelope below the socket: socket-side
         pin left showing in the worst case, plastic, trimmed tails and the

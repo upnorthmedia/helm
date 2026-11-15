@@ -177,10 +177,11 @@ def usb_link_parts(plate_t, wall_t, floor_z):
     w_tape = sheet.cradle_underside_w() - P.BREAKOUT_TAPE
     items.append(Item("usb_breakout", _p(plate_box(bx, bx + bl, bv, bv + bw, w_tape - bh, w_tape)), PCB, "part"))
     # the lead from the jack's inner end along the breakout's underside to its
-    # pads (on the edge away from the receptacle), where it is soldered on
+    # pad row (along the long edge away from the receptacle), where it is
+    # soldered on
     lead_r = P.BACK_JACK_LEAD_D / 2
     start = (jx, depth - P.BACK_JACK_LENGTH - lead_r, jz)
-    end = P.plate_to_case(bx + bl - 1.4, bv + bw / 2, w_tape - bh - lead_r - 0.1)
+    end = P.plate_to_case(bx + bl - P.BREAKOUT_PADS_IN, bv + bw / 2, w_tape - bh - lead_r - 0.1)
     lead = tube((start,) + P.JACK_LEAD_PATH + (end,), lead_r)
     items.append(Item("jack_lead", lead, CABLE, "part", through=("usb_breakout",)))
     (x0, x1), (y0, y1), (z0, z1) = P.JACK_LOOP
@@ -230,9 +231,9 @@ def tube(points, r):
 # and -), and the knob bundle's 4 wires (VIN, SDA, SCL, GND). The last stretch
 # into each pin or rail is left out: it ends inside its part.
 def _trunk_branches():
-    kx = P.KEY_XS
-    keys = [((36.0, 34.0, -16.0), (kx[0] + 5.08, 27.0, -12.0))]  # 27.0: behind the I rows, below the speaker holder
-    keys += [((x0, 33.0, -16.0), (x, 27.0, -12.0)) for x0, x in zip((34.0, 50.0, 64.0, 79.0), kx)]
+    kx, pin = P.KEY_XS, P.NEOKEY_PIN_X
+    keys = [((36.0, 34.0, -16.0), (kx[0] + pin["IO"], 27.0, -12.0))]  # 27.0: behind the I rows, below the speaker holder
+    keys += [((x0, 33.0, -16.0), (x + pin["A"], 27.0, -12.0)) for x0, x in zip((34.0, 50.0, 64.0, 79.0), kx)]
     rails = [((x, 46.0, -12.0), (x, 42.0, -8.0)) for x in P.STRIP_RAILS]
     return keys + rails
 
