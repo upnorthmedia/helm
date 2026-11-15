@@ -29,7 +29,7 @@ The SendCutSend parts are not quoted. The plan estimated **$140 to $170** for th
 | NeoPixel Stick, 8 RGB LEDs | 1 | 1 | [Adafruit 1426](https://www.adafruit.com/product/1426) | $5.95 | 61 | The light bar |
 | Half-size breadboard | 1 | 1 | [Adafruit 64](https://www.adafruit.com/product/64) | $4.95 | In stock | |
 | Male-male jumper wires, 20 x 150 mm | 1 | about 15 | [Adafruit 1957](https://www.adafruit.com/product/1957) | $1.95 | In stock | From the board's 40-pin socket to the breadboard |
-| Extra-long break-away 0.1 inch male header, 5 x 16 pin | 1 | about 50 pins | [Adafruit 400](https://www.adafruit.com/product/400) | $3.00 | In stock | Headers for the four NeoKeys, the encoder board, the stick, and the Perma-Proto |
+| Extra-long break-away 0.1 inch male header, 5 x 16 pin | 1 | about 50 pins | [Adafruit 400](https://www.adafruit.com/product/400) | $3.00 | In stock | Headers for the four NeoKeys, the encoder board, and the stick; in the case, two 10-pin pieces glued into the harness's 2 x 10 plug |
 | Black relegendable keycaps, 10 pack (optional) | 1 | 4 | [Adafruit 5662](https://www.adafruit.com/product/5662) | $7.50 | 34 | Bench caps with paper legends until the backlit caps (phase 3) arrive |
 | USB-C to USB-C cable, 1 m (optional) | 2 | 2 | [Adafruit 4199](https://www.adafruit.com/product/4199) | $9.95 each, $19.90 | In stock | One for the link ("USB" on the bench, the back jack in the case), one for flashing ("USB TO UART"). Any data-capable cables work |
 
@@ -37,9 +37,9 @@ The SendCutSend parts are not quoted. The plan estimated **$140 to $170** for th
 
 Only what the steps in [assembly.md](assembly.md) use:
 
-- **Soldering iron and solder:** headers on the NeoKeys, the encoder board, and the NeoPixel stick; the 6153 jack's lead to the 4090 breakout; the Perma-Proto wiring.
+- **Soldering iron and solder:** headers on the NeoKeys, the encoder board, and the NeoPixel stick; the 6153 jack's lead to the 4090 breakout; the in-case harness, its plug, and the power strip.
 - **The same iron sets the cradle's heat-set inserts.** A heat-set insert tip helps (optional).
-- **Flush cutters** and **wire strippers:** trimming header pins, cutting the JST plug off the 6153's lead, and the Perma-Proto wires.
+- **Flush cutters** and **wire strippers:** trimming header pins, cutting the JST plug off the 6153's lead and the ends off the harness jumpers. A saw or a sharp knife to cut the power strip off the Perma-Proto.
 - **2 mm hex key** for the M3 button head screws (usually included with the screws).
 - **The knob's set-screw key** (comes with the knob).
 - **A 3D printer** for the PETG parts in phase 2.
@@ -68,8 +68,8 @@ Only what the steps in [assembly.md](assembly.md) use:
 | USB-C screw panel mount jack to 6-pin JST PH lead, 175 mm | 1 | 1 | [Adafruit 6153](https://www.adafruit.com/product/6153) | $2.95 | In stock | The everyday cable's jack, low in the back wall. CC pulled down with 5.1 kOhm inside; D+ and D- on the lead |
 | USB Type C breakout board, downstream connection | 1 | 1 | [Adafruit 4090](https://www.adafruit.com/product/4090) | $2.95 | In stock | The jack's lead is soldered to it (VBUS, GND, D+, D-). 20.4 x 14.2 x 5.0 mm |
 | Slim right-angle USB C to USB C cable, 100 mm | 1 | 1 | [Adafruit 6370](https://www.adafruit.com/product/6370) | $6.95 | In stock | From the breakout to the board's "USB" receptacle; Adafruit verified power, data, and CC |
-| Perma-Proto half-size board | 1 | 1 | [Adafruit 1609](https://www.adafruit.com/product/1609) | $4.50 | 11 | Soldered 5 V and ground distribution inside the case |
-| Female-male jumper wires, 20 x 150 mm | 1 | about 12 | [Adafruit 1954](https://www.adafruit.com/product/1954) | $1.95 | In stock | Male end into the board's 40-pin socket, female end onto the parts' header pins |
+| Perma-Proto half-size board | 1 | 1 | [Adafruit 1609](https://www.adafruit.com/product/1609) | $4.50 | 11 | Cut down to a strip of its two power rails, about 9 x 17 mm: the soldered 5 V and ground distribution inside the case |
+| Female-male jumper wires, 20 x 150 mm | 1 | about 12 | [Adafruit 1954](https://www.adafruit.com/product/1954) | $1.95 | In stock | Ends cut off: the 11 harness wires from the plug to the parts. Any 150 mm jumpers do, including spare 1957s |
 | Hook-up wire, 22 AWG solid, 6 colors (optional) | 1 | | [Adafruit 1311](https://www.adafruit.com/product/1311) | $15.95 | In stock | Skip if you have wire |
 
 ## Choices this list makes
@@ -119,7 +119,7 @@ The captain picked a machined black knob whose skirt hides the encoder's nut, ov
 
 ### The header wires: 2.54 mm, male into the socket
 
-The LCD-5's expansion header is a **40-pin, 2.54 mm female socket** (the 4B's was a 2.0 mm 2 x 7 header, which needed the Adafruit 1919 adapter wires). Plain 0.1 inch jumpers fit it: male-male (Adafruit 1957) from the socket to the breadboard on the bench, and female-male (Adafruit 1954) from the socket to header pins on the parts in the case. Waveshare numbers the pins with 5V on pin 1, not the Raspberry Pi's way; see [wiring.md](wiring.md#where-the-pin-numbers-come-from).
+The LCD-5's expansion header is a **40-pin, 2.54 mm female socket** (the 4B's was a 2.0 mm 2 x 7 header, which needed the Adafruit 1919 adapter wires). Plain 0.1 inch jumpers fit it: male-male (Adafruit 1957) from the socket to the breadboard on the bench. In the case, single jumper pins work loose, so the wires are soldered to one homemade 2 x 10 plug of extra-long header instead, with jumpers cut down for wire ([wiring.md](wiring.md#wires)). Waveshare numbers the pins with 5V on pin 1, not the Raspberry Pi's way; see [wiring.md](wiring.md#where-the-pin-numbers-come-from).
 
 ### The knob is wired, not plugged
 
