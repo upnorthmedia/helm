@@ -48,24 +48,27 @@ def paint(shapes: list[render.Shape], path: Path, scale: int = 2) -> None:
     img.save(path)
 
 
-def screens() -> dict[str, tuple[Deck, float]]:
-    """One deck per screen, built by driving the real state machine."""
+def screens(deck_class: type[Deck] = Deck) -> dict[str, tuple[Deck, float]]:
+    """One deck per screen, built by driving the real state machine.
+
+    sim/parity.py passes a Deck that records each step, to replay them on the firmware's deck.
+    """
     t = 1000.0
     out: dict[str, tuple[Deck, float]] = {}
 
     def fresh() -> Deck:
-        deck = Deck()
+        deck = deck_class()
         deck.on_model(fixtures.busy(seq=2), t)
         deck.take_outbox()
         return deck
 
     out["home"] = (fresh(), t + 0.3)
 
-    calm = Deck()
+    calm = deck_class()
     calm.on_model(fixtures.calm(seq=1), t)
     out["home-calm"] = (calm, t)
 
-    near = Deck()
+    near = deck_class()
     near.on_model(fixtures.calm_near_limit(seq=1), t)
     out["home-context"] = (near, t)
 
@@ -92,12 +95,12 @@ def screens() -> dict[str, tuple[Deck, float]]:
     deck.on_model(replied, t + 2)
     out["result"] = (deck, t + 2)
 
-    stale = Deck()
+    stale = deck_class()
     stale.on_model(fixtures.stale(seq=4), t)
     out["home-unknown"] = (stale, t)
 
     # The knob on Home turns to the widget-api view; a press opens its list.
-    deck = Deck()
+    deck = deck_class()
     deck.on_model(fixtures.projects(seq=5), t)
     deck.knob(-1, t)
     out["home-view"] = (deck, t + 0.3)
@@ -105,16 +108,16 @@ def screens() -> dict[str, tuple[Deck, float]]:
     deck.knob_press(False, t)
     out["list-view"] = (deck, t)
 
-    away = Deck()
+    away = deck_class()
     away.on_model(fixtures.away(seq=6), t)
     out["home-away"] = (away, t + 0.3)
 
-    locked = Deck()
+    locked = deck_class()
     locked.on_model(fixtures.mac_locked(seq=7), t)
     out["home-locked"] = (locked, t + 0.3)
 
     # Answers waiting on firstmate: the list says which item has one, the result how far it got.
-    deck = Deck()
+    deck = deck_class()
     deck.on_model(fixtures.answered(seq=8), t)
     deck.knob(1, t)
     out["list-answered"] = (deck, t)

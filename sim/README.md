@@ -55,10 +55,11 @@ The light bar shows one light per unseen item in its kind's color, tinted by its
 - `state.py`: the deck's local state (screen, selection, hold, mute, link timeout). No window; tested directly.
 - `render.py`: state to a list of shapes for the whole window.
 - `app.py`: tkinter painting those shapes, input, the link thread, the chime.
-- `snapshot.py`: paints the same shapes to PNG with Pillow (`python -m sim.snapshot DIR`), for docs. Pillow is only needed for this.
+- `snapshot.py`: paints the same shapes to PNG with Pillow (`python -m sim.snapshot DIR`), for docs. Pillow is only needed for this and `parity.py`.
+- `parity.py`: compares each screen with the firmware's own drawing of it (`firmware/host`, under LVGL), within the tolerances stated at its top; `scripts/test-screens.sh` runs it, and so does CI.
 - `fake_bridge.py`, `fixtures.py`: invented data for `--fake` and tests.
 
-The screenshots in `docs/sim/` come from `snapshot.py` with fixture data (`python -m sim.snapshot docs/sim`). The firmware draws the same layout (`firmware/idf/main/ui.c`); `firmware/idf/README.md` lists where the two differ (fonts, the on-screen keys). Hello reports `screen-1280x720` among its capabilities, as the firmware does.
+The screenshots in `docs/sim/` come from `snapshot.py` with fixture data (`python -m sim.snapshot docs/sim`). The firmware draws the same layout (`firmware/idf/main/ui.c`), which CI checks screen by screen (`parity.py`); `firmware/idf/README.md` lists where the two differ (fonts, the on-screen keys). Hello reports `screen-1280x720` among its capabilities, as the firmware does.
 
 ## The wire
 

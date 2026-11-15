@@ -74,3 +74,5 @@ That builds `firmware/build/` with CMake and runs:
 - `tests/test_firmware_core.py`, which drives `test/helm_wire_tool.c` and compares with `helm/wire`: event frames for every event type and hundreds of random strings; models encoded by Python, parsed by C, and written back out byte for byte (fixtures, random models, models at the 8192-byte limit); a set of mutated payloads that both sides must accept or refuse alike; and 300 random noisy streams through both frame decoders, comparing frames, expiry, and counters.
 
 The Python test is part of the normal suite (`python3 -m unittest discover -s tests -t .`) and skips when `cmake` is missing.
+
+`host/` draws the deck's screens on the computer: `idf/main/ui.c` and the core under LVGL 9.5.0, into a 1280 x 720 RGB565 buffer instead of the panel, driven over stdin (`host/screens.c` lists the commands). `scripts/test-screens.sh` fetches LVGL, builds it, and runs `python -m sim.parity`, which compares every screen with the simulator's; see [idf/README.md](idf/README.md#how-it-was-checked).
