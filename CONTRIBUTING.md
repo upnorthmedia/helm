@@ -35,7 +35,10 @@ The pipeline and CI run these again, but a local pass saves rounds. Run them fro
 python3 -m unittest discover -s tests -t .   # bridge, simulator, wire, scripts
 scripts/test-firmware.sh                      # firmware core: C tests under ASan and UBSan, then cross-tests
 scripts/check-hygiene.sh                      # public repository hygiene (below)
+scripts/test-firstmate-contract.sh            # the bridge against a real firstmate (needs git, jq, network)
 ```
+
+`scripts/test-firstmate-contract.sh` fetches firstmate at the commit pinned in the script and runs `tests/test_firstmate_contract.py` against it: firstmate's own summary producer and inbox, in a temporary home, under Helm's bridge. Run it when you change what the bridge reads from firstmate or how it writes notes. A weekly workflow (`firstmate-drift.yml`) runs the same tests against firstmate's main and opens an issue here when they fail; it never blocks a pull request. Bump the pin in a pull request of its own once the tests pass against the new commit.
 
 CI also runs `ruff check`, `shellcheck` on every `*.sh`, `actionlint`, and `reuse lint`, with the versions pinned in [`.github/workflows/tests.yml`](.github/workflows/tests.yml), and the Python suite and scripts on macOS with its stock bash 3.2. Scripts in `scripts/` must run on that bash: no `mapfile`, no associative arrays.
 
@@ -55,11 +58,16 @@ The ESP-IDF firmware (`firmware/idf/`) builds in CI in Espressif's image; see [f
 - **The bridge stays standard library only.** `helm/` runs on a stock Python 3.11 or newer with nothing installed. Lint tools are CI only.
 - **The wire stays compatible.** A deck flashed months ago must keep working with a new bridge, and the reverse. New fields are optional, have defaults, and older decoders ignore them; the frame format does not change in a way an older deck cannot read; the 8192 byte frame must still fit.
 - **The allowlist is the boundary.** The bridge runs external commands only through [`helm/bridge/commands.py`](helm/bridge/commands.py). It never merges, pushes, types into a pane, or touches firstmate's lifecycle. A change that adds a command there needs a reason in the pull request and a test. See [SECURITY.md](SECURITY.md).
+- **The protocol number names the wire.** `PROTOCOL` in `helm/contract.py` and `HELM_PROTOCOL` in `firmware/core/helm_model.h` (kept equal by a test) ride in every hello and model. Raise both when a change means something an older peer would act on wrongly instead of ignoring; an optional field it skips does not raise it. The number is only logged: neither side refuses the other over it.
 - **Tests come with behavior.** A behavior change comes with a test; a bug fix comes with a test that fails without the fix.
 
 ## Pull request titles and merging
 
 Use a [Conventional Commits](https://www.conventionalcommits.org/) title: `fix(bridge): ...`, `feat(sim): ...`, `docs: ...`, `test: ...`, `ci: ...`, `chore: ...`. Pull requests are squash merged, so the title becomes the commit on `main`. A pull request must be up to date with `main` and green on every required check before it merges.
+
+## Versions and releases
+
+Releases are git tags named `vMAJOR.MINOR.PATCH` (`v0.2.0`) on a commit of `main`. The deck reports its version in hello as `helm-idf-` plus `git describe`, so a build of a tag says exactly that tag. Pushing a tag runs `.github/workflows/release.yml`: it builds the deck firmware at the tag, refuses to go on if the build names any other version, and opens a **draft** release with the binaries (`helm-deck-<tag>.bin`, the whole flash image; a zip with the separate parts and flash commands; `SHA256SUMS`). Nothing is published until someone publishes the draft by hand. Every CI run also keeps the default build's binaries as the artifact `helm-deck-firmware`, for trying a change on a board without installing ESP-IDF.
 
 ## Public repository hygiene
 

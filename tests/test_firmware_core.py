@@ -165,6 +165,7 @@ def random_model(rng: random.Random, seq: int) -> c.Model:
         chime=rng.random() < 0.3,
         usage=random_usage(rng),
         context=random_context(rng),
+        proto=rng.choice([None, c.PROTOCOL, 0, 2**31 - 1, rng.randint(1, 100)]),
     )
 
 
@@ -189,7 +190,8 @@ def outside_c_range(model: c.Model) -> bool:
     small = [model.unseen, *asdict(model.counts).values(), *(item.age_s for item in model.items),
              *(v for v in asdict(model.usage).values() if v is not None),
              *(v for v in (model.context.top_used, model.context.near_limit) if v is not None),
-             *([model.result.waited_s] if model.result and model.result.waited_s is not None else [])]
+             *([model.result.waited_s] if model.result and model.result.waited_s is not None else []),
+             *([model.proto] if model.proto is not None else [])]
     return model.seq not in INT64 or any(v not in INT32 for v in small)
 
 
@@ -274,6 +276,20 @@ class FirmwareCoreCrossTest(unittest.TestCase):
             self.assertLessEqual(len(payload_of(fitted)), frame.MAX_PAYLOAD)
             models.append(fitted)
         self._round_trip(models)
+
+    def test_protocol_numbers_match(self):
+        header = (FIRMWARE / "core" / "helm_model.h").read_text()
+        self.assertEqual(int(re.search(r"#define HELM_PROTOCOL (\d+)", header).group(1)), c.PROTOCOL)
+
+    def test_model_from_a_bridge_before_protocol_numbers(self):
+        """No proto key at all: the C parser takes it, and writes it back as unknown (null), as Python reads it."""
+        obj = json.loads(payload_of(fixtures.busy(seq=4)))
+        obj.pop("proto")
+        old = json.dumps(obj, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+        [line] = run_tool([f"model {frame.encode(frame.TYPE_JSON, old).hex()}"])
+        self.assertTrue(line.startswith("ok "), line)
+        self.assertIsNone(json.loads(bytes.fromhex(line[3:]))["proto"])
+        self.assertEqual(bytes.fromhex(line[3:]), payload_of(codec.decode_model(old)))
 
     def test_item_bound_covers_any_frame(self):
         """HELM_MAX_ITEMS holds as many of the smallest items as fit in one frame."""

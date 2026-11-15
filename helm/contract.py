@@ -13,6 +13,15 @@ skips JSON keys it does not know. No enum gains a value for the same reason:
 both decoders refuse a model with an enum value they do not know, so "firstmate
 has read the note" is Result.seen beside state "queued", not a new state.
 
+Each side also names the protocol it speaks: Hello.proto and Model.proto carry
+PROTOCOL. A peer from before the number sends neither, and both decoders read
+that as None (unnumbered, the wire as it stood before protocol 1). The number
+is information, never a gate: nothing refuses a peer for speaking another
+protocol, and the bridge only logs a mismatch, so the rules above still keep
+old and new peers working together. Raise PROTOCOL when the wire changes in a
+way an older peer would act on wrongly rather than ignore (Key.ref was such a
+change); optional fields an older peer skips do not raise it.
+
 One exception is deliberate. Key.ref names the item the deck showed, and the
 bridge acts only on that ref, never on the last `select` it received (a lost
 `select` frame would turn a held YES onto another item). So a deck from before
@@ -34,6 +43,9 @@ ResultState = Literal["queued", "replied", "failed"]
 Answer = Literal["yes", "later", "hold"]  # the held keys that send a firstmate note
 KeyName = Literal["yes", "later", "hold", "focus"]
 KeyPhase = Literal["down", "up", "held"]
+
+# The wire protocol this code speaks; see the module docstring for when it changes.
+PROTOCOL = 1
 
 
 # Bridge to device.
@@ -138,6 +150,7 @@ class Model:
     chime: bool = False  # play one chime for this model, once
     usage: Usage = field(default_factory=Usage)
     context: Context = field(default_factory=Context)
+    proto: Optional[int] = PROTOCOL  # the bridge's protocol; None from a bridge before protocol numbers
 
 
 def model_to_dict(model: Model) -> dict:
@@ -156,6 +169,7 @@ def model_from_dict(data: dict) -> Model:
         chime=data.get("chime", False),
         usage=Usage(**data["usage"]) if data.get("usage") else Usage(),
         context=Context(**data["context"]) if data.get("context") else Context(),
+        proto=data.get("proto"),
     )
 
 
@@ -173,6 +187,8 @@ class Hello:
     # frame magic is the Harness one (D9), so this is what tells a Harness
     # daemon to let go of the port and tells the bridge it found a Helm deck.
     product: str = PRODUCT
+    # The deck's protocol; None from a deck before protocol numbers.
+    proto: Optional[int] = PROTOCOL
 
 
 @dataclass

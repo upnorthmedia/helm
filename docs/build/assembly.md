@@ -74,7 +74,7 @@ From the repo root, in dry run (the default: notes and pane focus are logged, no
 python3 -m helm.bridge --port /dev/cu.usbmodemYYYY -v
 ```
 
-Look for `device hello: fw=helm-idf-0.1 caps=screen-1280x720,...`. The deck should show a model within 2 s, and drop to "no word from the bridge for 10 s" after you stop the bridge. When the board stays put, install the login agent with the same port ([README](../../README.md#start-the-bridge-at-login)):
+Look for `device hello: fw=helm-idf-<version> proto=1 caps=screen-1280x720,...`. The deck should show a model within 2 s, and drop to "no word from the bridge for 10 s" after you stop the bridge. When the board stays put, install the login agent with the same port ([README](../../README.md#start-the-bridge-at-login)):
 
 ```sh
 scripts/install-agent.sh --port /dev/cu.usbmodemYYYY          # dry run

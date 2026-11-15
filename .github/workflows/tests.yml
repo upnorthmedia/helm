@@ -71,6 +71,22 @@ jobs:
         shell: /bin/bash -eu {0}
         run: python3 -m unittest discover -s tests -t . -v
 
+  # Helm against a real firstmate at the commit pinned in the script: its
+  # summary producer and inbox run in a temporary home under the bridge
+  # (tests/test_firstmate_contract.py). firstmate-drift.yml runs the same
+  # tests weekly against firstmate's main, without blocking anything.
+  firstmate-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.x"
+      - name: Contract tests against the pinned firstmate
+        run: scripts/test-firstmate-contract.sh
+
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -178,11 +194,24 @@ jobs:
         run: |
           . "$IDF_PATH/export.sh"
           idf.py -C firmware/idf -B build/idf build
+      # The flashable binaries of the default build, kept with the run, so
+      # trying a change on a board needs no ESP-IDF install. A tagged release
+      # attaches the same set (release.yml).
+      - name: Collect the binaries
+        shell: bash
+        run: |
+          . "$IDF_PATH/export.sh"
+          scripts/collect-firmware.sh build/idf dist/firmware
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: helm-deck-firmware
+          path: dist/firmware/
+          if-no-files-found: error
       # The runner's disk does not hold the image and two builds at once.
       - name: Build (alternatives)
         shell: bash
         run: |
-          rm -rf build/idf
+          rm -rf build/idf dist
           . "$IDF_PATH/export.sh"
           idf.py -C firmware/idf -B build/idf-alt -D SDKCONFIG="$PWD/build/idf-alt/sdkconfig" \
             -D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.p4-rev1;sdkconfig.ci-alt" build

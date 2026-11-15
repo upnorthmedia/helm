@@ -93,8 +93,35 @@ class Codec(unittest.TestCase):
                 with self.assertRaises(codec.DecodeError):
                     codec.decode_model(json.dumps(obj).encode())
 
+    def test_protocol_number_rides_in_hello_and_model(self):
+        self.assertEqual(json.loads(_payload(codec.encode_event(c.Hello(fw="sim-0.1"))))["proto"], c.PROTOCOL)
+        self.assertEqual(json.loads(_payload(codec.encode_model(fixtures.calm())))["proto"], c.PROTOCOL)
+        # A newer peer's number is read, not refused: the number is information, never a gate.
+        obj = json.loads(_payload(codec.encode_model(fixtures.calm())))
+        obj["proto"] = c.PROTOCOL + 5
+        self.assertEqual(codec.decode_model(json.dumps(obj).encode()).proto, c.PROTOCOL + 5)
+        hello = codec.decode_event(b'{"t":"hello","fw":"x","caps":[],"product":"helm","proto":9}')
+        self.assertEqual(hello.proto, 9)
+
+    def test_hello_from_a_deck_before_protocol_numbers(self):
+        old = b'{"t":"hello","fw":"helm-idf-0.1","caps":["screen-1280x720","touch"],"product":"helm"}'
+        self.assertEqual(codec.decode_event(old),
+                         c.Hello(fw="helm-idf-0.1", caps=["screen-1280x720", "touch"], proto=None))
+        self.assertEqual(codec.decode_event(old.replace(b'}', b',"proto":null}')).proto, None)
+
+    def test_rejects_bad_protocol_numbers(self):
+        hello = b'{"t":"hello","fw":"x","caps":[],"product":"helm","proto":%s}'
+        good = json.loads(_payload(codec.encode_model(fixtures.calm())))
+        for bad in (b'-1', b'true', b'"1"', b'1.0', b'2147483648'):
+            with self.subTest(bad=bad):
+                with self.assertRaises(codec.DecodeError):
+                    codec.decode_event(hello % bad)
+                with self.assertRaises(codec.DecodeError):
+                    codec.decode_model(json.dumps(good).encode()[:-1] + b',"proto":' + bad + b'}')
+
     def test_payload_from_an_older_bridge_decodes_with_defaults(self):
         obj = json.loads(_payload(codec.encode_model(fixtures.busy())))
+        obj.pop("proto")
         obj.pop("usage")
         obj.pop("context")
         obj["link"].pop("away")
@@ -107,6 +134,7 @@ class Codec(unittest.TestCase):
         self.assertFalse(m.link.away)
         self.assertFalse(m.link.mac_locked)
         self.assertTrue(all(i.project is None for i in m.items))
+        self.assertIsNone(m.proto)
 
     def test_new_fields_round_trip(self):
         m = fixtures.away()

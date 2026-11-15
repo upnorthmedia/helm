@@ -174,7 +174,9 @@ size_t helm_test_model_json(const helm_model_t *m, uint8_t *out, size_t cap)
     put_str_or_null(&w, m, m->context.top_agent);
     helm_jsonw_raw(&w, ",\"near_limit\":");
     put_opt_int(&w, m->context.near_limit);
-    helm_jsonw_raw(&w, "}}");
+    helm_jsonw_raw(&w, "},\"proto\":");
+    put_opt_int(&w, m->proto);
+    helm_jsonw_raw(&w, "}");
     return w.overflow ? 0 : w.len;
 }
 

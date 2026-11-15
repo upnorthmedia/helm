@@ -389,6 +389,7 @@ static void test_model_parse_full(void)
     CHECK(helm_model_str(m, m->context.top_agent) == NULL);
     CHECK(!m->items[0].has_pending && !m->items[1].has_pending);
     CHECK(!m->result.seen && !m->result.stalled && !m->result.waited_s.known);
+    CHECK(!m->proto.known); /* a bridge from before protocol numbers */
 }
 
 static void test_model_parse_new_fields(void)
@@ -402,7 +403,7 @@ static void test_model_parse_new_fields(void)
         "\"result\":{\"request_id\":\"r\",\"state\":\"queued\",\"text\":\"t\",\"seen\":false,\"waited_s\":250,"
         "\"stalled\":true},\"chime\":false,\"usage\":{\"five_hour_left\":0,\"five_hour_resets_s\":2147483647,"
         "\"week_left\":100,\"week_resets_s\":null,\"later\":[1]},"
-        "\"context\":{\"top_used\":91,\"top_agent\":\"widget-cache\",\"near_limit\":2,\"later\":{}}}";
+        "\"context\":{\"top_used\":91,\"top_agent\":\"widget-cache\",\"near_limit\":2,\"later\":{}},\"proto\":1}";
     CHECK_INT(parse_text(json), HELM_PARSE_OK);
     const helm_model_t *m = &model_a;
     CHECK(m->link.away);
@@ -426,6 +427,8 @@ static void test_model_parse_new_fields(void)
     CHECK(m->usage.week_left.known);
     CHECK_INT(m->usage.week_left.value, 100);
     CHECK(!m->usage.week_resets_s.known);
+    CHECK(m->proto.known);
+    CHECK_INT(m->proto.value, HELM_PROTOCOL);
 }
 
 static void test_model_strings(void)
@@ -505,6 +508,10 @@ static void test_model_errors(void)
         {BASE_HEAD ",\"items\":[],\"chime\":false,\"context\":{\"near_limit\":-1}}", HELM_PARSE_RANGE},
         {BASE_HEAD ",\"items\":[],\"chime\":false,\"context\":{\"top_used\":true}}", HELM_PARSE_TYPE},
         {BASE_HEAD ",\"items\":[],\"chime\":false,\"context\":{\"top_agent\":3}}", HELM_PARSE_TYPE},
+        {BASE_HEAD ",\"items\":[],\"chime\":false,\"proto\":null}", HELM_PARSE_OK},
+        {BASE_HEAD ",\"items\":[],\"chime\":false,\"proto\":7}", HELM_PARSE_OK}, /* a newer bridge: still read */
+        {BASE_HEAD ",\"items\":[],\"chime\":false,\"proto\":-1}", HELM_PARSE_RANGE},
+        {BASE_HEAD ",\"items\":[],\"chime\":false,\"proto\":\"1\"}", HELM_PARSE_TYPE},
     };
     for (size_t i = 0; i < sizeof cases / sizeof cases[0]; i++) {
         helm_parse_status_t got = parse_text(cases[i].json);
@@ -593,9 +600,10 @@ static void test_events(void)
     ev.u.hello.fw = "helm-0.1";
     ev.u.hello.caps = caps;
     ev.u.hello.cap_count = 2;
-    CHECK_STR(event_json(&ev), "{\"t\":\"hello\",\"fw\":\"helm-0.1\",\"caps\":[\"keys-4\",\"knob\"],\"product\":\"helm\"}");
+    CHECK_STR(event_json(&ev),
+              "{\"t\":\"hello\",\"fw\":\"helm-0.1\",\"caps\":[\"keys-4\",\"knob\"],\"product\":\"helm\",\"proto\":1}");
     ev.u.hello.cap_count = 0;
-    CHECK_STR(event_json(&ev), "{\"t\":\"hello\",\"fw\":\"helm-0.1\",\"caps\":[],\"product\":\"helm\"}");
+    CHECK_STR(event_json(&ev), "{\"t\":\"hello\",\"fw\":\"helm-0.1\",\"caps\":[],\"product\":\"helm\",\"proto\":1}");
 
     memset(&ev, 0, sizeof ev);
     ev.type = HELM_EVENT_KEY;

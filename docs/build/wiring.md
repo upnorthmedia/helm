@@ -107,7 +107,7 @@ These are assumptions until a board is on the bench. Items marked **firmware** a
 | # | Check | How | Source |
 | --- | --- | --- | --- |
 | 1 | "USB" is the receptacle nearer the header edge and "USB TO UART" the one nearer the buttons | Read the silkscreen beside each receptacle | this guide |
-| 2 | "USB" enumerates as a CDC-ACM device and the bridge sees `device hello: fw=helm-idf-0.1 caps=screen-1280x720,...` | [assembly.md, step 1.4](assembly.md#14-point-the-bridge-at-the-board) | firmware |
+| 2 | "USB" enumerates as a CDC-ACM device and the bridge sees `device hello: fw=helm-idf-<version> proto=1 caps=screen-1280x720,...` | [assembly.md, step 1.4](assembly.md#14-point-the-bridge-at-the-board) | firmware |
 | 3 | "USB" alone powers the board, and both cables at once cause no trouble | Plug each alone, then both | firmware |
 | 4 | **Pin 1 of the header**, and that it is a female socket | Read the silkscreen ("5V 5V" at the end away from the USB ports). With the board unpowered, a meter's continuity setting should beep from any GND pin to a USB-C shell and stay silent from pin 1 | this guide |
 | 5 | **The board powers on by itself when USB is plugged in** | Plug in "USB" and watch. The POWER button drives a power latch, and Waveshare does not say whether it starts on. In the case POWER is out of reach (on the module's front edge, under the face), so if it needs a press, stop and tell the case owner before closing | this guide |

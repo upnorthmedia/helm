@@ -34,6 +34,8 @@ size_t helm_event_payload(const helm_event_t *event, uint8_t *out, size_t cap)
         }
         helm_jsonw_raw(&w, "],\"product\":");
         helm_jsonw_string(&w, HELM_PRODUCT);
+        helm_jsonw_raw(&w, ",\"proto\":");
+        helm_jsonw_int(&w, HELM_PROTOCOL);
         break;
     case HELM_EVENT_KEY:
         helm_jsonw_raw(&w, ",\"key\":");

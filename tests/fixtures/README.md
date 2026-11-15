@@ -27,3 +27,5 @@ The producer marks that summary invalid (`terminal_in_flight`), as it does for a
 
 Two values are filled in when a test copies a home (`tests/helpers.py`, `date_summary`): the `TODAY` date on the landed row, and each captain row's `checked_at`, set to now so the row counts as freshly checked.
 `pr-health.json`, the `.meta` files, and the `.status` files are hand-written in the shapes `bin/fm-pr-health.sh`, `bin/fm-spawn.sh`, and the worker status protocol use.
+
+`tests/test_firstmate_contract.py` checks the same shapes against firstmate's real producer and inbox at the commit pinned in `scripts/test-firstmate-contract.sh`, so a fixture that drifts from what firstmate emits shows up there.
