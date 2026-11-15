@@ -37,7 +37,8 @@ class Item:
     name: str
     shape: object
     color: tuple
-    kind: str  # "case" (made here), "part" (bought), "hw" (fasteners), "look" (render only)
+    kind: str  # "case" (made here), "part" (bought), "hw" (fasteners), "wire" (the harness), "space" (room kept for spare wire), "look" (render only)
+    through: tuple = ()  # items this one passes through by design, such as header pins through their board
 
 
 def _p(shape):
@@ -67,6 +68,9 @@ def bought_parts(keycap=None, back_wall_t=P.SHEET_T):
         items.append(Item(f"switch{i}", _p(plate_box(x - 7, x + 7, v - 7, v + 7, pcb_top, -t)), (0.2, 0.2, 0.2), "part"))
         items.append(Item(f"neokey{i}", _p(plate_box(x - nx / 2, x + nx / 2, v - nv / 2, v + nv / 2, pcb_top - P.NEOKEY_PCB_THICKNESS, pcb_top)), PCB, "part"))
         items.append(Item(f"keywires{i}", _p(plate_box(x - nx / 2 + 1, x + nx / 2 - 1, v - nv / 2 + 1, v + nv / 2 - 1, -P.KEY_STACK_DEPTH, pcb_top - P.NEOKEY_PCB_THICKNESS)), (0.3, 0.3, 0.3), "part"))
+        rows = (v + P.NEOKEY_PIN_ROW, v - P.NEOKEY_PIN_ROW)
+        pins = header_pins(x, rows, P.NEOKEY_ROW_PINS, pcb_top, P.NEOKEY_PCB_THICKNESS)
+        items.append(Item(f"keypins{i}", pins, STEEL, "part", through=(f"neokey{i}", f"keywires{i}")))
         items.append(Item(f"switchtop{i}", _p(plate_box(x - 7.8, x + 7.8, v - 7.8, v + 7.8, 0, P.SWITCH_TOP_HEIGHT)), (0.2, 0.2, 0.2), "part"))
         # the cap sits on the switch's MX cross stem, just clear of the housing
         k, top = cap_size, P.SWITCH_TOP_HEIGHT + 0.4 + cap_height
@@ -84,6 +88,8 @@ def bought_parts(keycap=None, back_wall_t=P.SHEET_T):
     pcb_w = -P.SHEET_T - P.ENCODER_BODY_HEIGHT
     items.append(Item("encoder_board", _p(plate_box(ex - b / 2, ex + b / 2, ev - b / 2, ev + b / 2, pcb_w - 1.6, pcb_w)), PCB, "part"))
     items.append(Item("encoder_parts", _p(plate_box(ex - b / 2 + 2, ex + b / 2 - 2, ev - b / 2 + 2, ev + b / 2 - 2, pcb_w - 5.0, pcb_w - 1.6)), (0.3, 0.3, 0.3), "part"))
+    pins = header_pins(ex, (ev + P.KNOB_PIN_ROW,), P.KNOB_ROW_PINS, pcb_w, 1.6)
+    items.append(Item("knobpins", pins, STEEL, "part", through=("encoder_board", "encoder_parts")))
     knob = plate_cyl(ex, ev, P.KNOB_D / 2, 1.0, 1.0 + P.KNOB_HEIGHT)
     knob = _fillet(knob, ">Z", 1.0, faces=True)
     items.append(Item("knob", _p(knob), (0.12, 0.12, 0.13), "part"))
@@ -98,8 +104,8 @@ def bought_parts(keycap=None, back_wall_t=P.SHEET_T):
     top = -t - P.LIGHT_DIFFUSER
     items.append(Item("light_stick", _p(plate_box(P.LIGHT_X - sx / 2, P.LIGHT_X + sx / 2, P.LIGHT_V - sv / 2, P.LIGHT_V + sv / 2, top - P.LIGHT_STICK_THICKNESS, top)), PCB, "part"))
 
-    # The 40-pin header socket on the board's back, and the jumper plugs
-    # pushed into it from below with their wires' bend
+    # The 40-pin header socket on the board's back, and the harness plug
+    # pushed into it from below with its wires' turn
     # (the module's box already holds the socket's first 4 mm)
     hx0, hx1, hv0, hv1 = header_rect()
     w_low = -t - P.MODULE_PCB_REAR - P.HEADER_HEIGHT
@@ -117,21 +123,40 @@ def bought_parts(keycap=None, back_wall_t=P.SHEET_T):
     return items
 
 
+def header_pins(cx, rows, n, pcb_top, pcb_t):
+    """Extra-long header pins soldered with their plastic under a board whose
+    top is at plate w pcb_top, trimmed to PIN_TRIM_TOP above it and
+    PIN_TRIM_TAIL below the plastic: one row of n pins along x, centred on
+    cx, at each plate v in rows. The plastic itself is not modelled."""
+    h, top = P.HEADER_PIN / 2, pcb_top + P.PIN_TRIM_TOP
+    bottom = pcb_top - pcb_t - P.HEADER_BODY - P.PIN_TRIM_TAIL
+    xs = [cx + (k - (n - 1) / 2) * 2.54 for k in range(n)]
+    return cq.Compound.makeCompound([_p(plate_box(x - h, x + h, v - h, v + h, bottom, top)) for v in rows for x in xs])
+
+
+def socket_pin(n):
+    """Plate (x, v) of pin n of the 40-pin header: Waveshare's numbering,
+    odd pins on the row nearer the board's edge, pins 1 and 2 at the end away
+    from the USB-C edge."""
+    pcb_far_x = P.MODULE_X + P.MODULE_PCB_INSET_USB + P.MODULE_PCB[0]
+    pcb_back_v = P.MODULE_V + P.MODULE_SV - P.MODULE_PCB_INSET_V
+    outer, inner = P.HEADER_ROWS_IN
+    return pcb_far_x - P.HEADER_PIN1_FROM_FAR_EDGE - (n - 1) // 2 * 2.54, pcb_back_v - (outer if n % 2 else inner)
+
+
 def header_rect():
     """Plate (x0, x1, v0, v1) of the 40-pin header's socket body."""
-    pcb_far_x = P.MODULE_X + P.MODULE_PCB_INSET_USB + P.MODULE_PCB[0]
-    pin1_x = pcb_far_x - P.HEADER_PIN1_FROM_FAR_EDGE
+    pin1_x = socket_pin(1)[0]
     x0, x1 = pin1_x - 19 * 2.54 - 1.27 - 0.5, pin1_x + 1.27 + 0.5
-    pcb_back_v = P.MODULE_V + P.MODULE_SV - P.MODULE_PCB_INSET_V
-    rows = [pcb_back_v - r for r in P.HEADER_ROWS_IN]
+    rows = [socket_pin(1)[1], socket_pin(2)[1]]
     return x0, x1, min(rows) - 1.27 - 0.5, max(rows) + 1.27 + 0.5
 
 
 def usb_link_parts(plate_t, wall_t, floor_z):
     """The everyday USB-C path: the panel jack low in the back wall, its lead
-    to the breakout on the floor, and the slim ribbon from the breakout up to
-    the module's native USB port. wall_t is the back wall's thickness,
-    floor_z the top of the floor."""
+    to the breakout under the cradle plate, and the slim ribbon from the
+    breakout to the module's native USB port. wall_t is the back wall's
+    thickness, floor_z the top of the floor."""
     items = []
     # panel jack: flange outside, body through the wall, nut inside
     jx, jz, depth = P.BACK_JACK_X, P.BACK_JACK_Z, P.DEPTH
@@ -145,15 +170,21 @@ def usb_link_parts(plate_t, wall_t, floor_z):
     nut = nut.rotate(cq.Vector(0, 0, 0), cq.Vector(1, 0, 0), -90).translate(cq.Vector(jx, depth - wall_t - nt, jz))
     items.append(Item("back_jack_nut", nut, STEEL, "hw"))
 
-    # breakout on foam tape, receptacle facing the left wall
-    bx, by = P.BREAKOUT_XY
+    # breakout on foam tape under the cradle plate, hanging pads down,
+    # receptacle facing the left wall
+    bx, bv = P.BREAKOUT_XV
     bl, bw, bh = P.BREAKOUT
-    bz = floor_z + P.BREAKOUT_TAPE
-    items.append(Item("usb_breakout", cq.Solid.makeBox(bl, bw, bh, cq.Vector(bx, by, bz)), PCB, "part"))
+    w_tape = sheet.cradle_underside_w() - P.BREAKOUT_TAPE
+    items.append(Item("usb_breakout", _p(plate_box(bx, bx + bl, bv, bv + bw, w_tape - bh, w_tape)), PCB, "part"))
+    # the lead from the jack's inner end along the breakout's underside to its
+    # pads (on the edge away from the receptacle), where it is soldered on
     lead_r = P.BACK_JACK_LEAD_D / 2
-    start = cq.Vector(jx, depth - P.BACK_JACK_LENGTH - lead_r, jz)
-    end = cq.Vector(bx + bl - 2.0, by + bw / 2, bz + bh + lead_r + 0.1)
-    items.append(Item("jack_lead", cq.Solid.makeCylinder(lead_r, (end - start).Length, start, end - start), CABLE, "part"))
+    start = (jx, depth - P.BACK_JACK_LENGTH - lead_r, jz)
+    end = P.plate_to_case(bx + bl - 1.4, bv + bw / 2, w_tape - bh - lead_r - 0.1)
+    lead = tube((start,) + P.JACK_LEAD_PATH + (end,), lead_r)
+    items.append(Item("jack_lead", lead, CABLE, "part", through=("usb_breakout",)))
+    (x0, x1), (y0, y1), (z0, z1) = P.JACK_LOOP
+    items.append(Item("jack_loop", cq.Solid.makeBox(x1 - x0, y1 - y0, z1 - z0, cq.Vector(x0, y0, z0)), CABLE, "space", through=("jack_lead",)))
 
     # slim ribbon: one plug in H2, a straight drop beside the module, the
     # other plug in the breakout
@@ -166,12 +197,15 @@ def usb_link_parts(plate_t, wall_t, floor_z):
     w_end = (floor_z + P.RIBBON_DROP_END - P.FRONT_HEIGHT - v * math.sin(P.SLOPE)) / math.cos(P.SLOPE)
     rt, rw = P.RIBBON_THICKNESS, P.RIBBON_WIDTH
     items.append(Item("ribbon", _p(plate_box(xr - rt / 2, xr + rt / 2, v - rw / 2, v + rw / 2, w_end, w - hn / 2)), MODULE, "part"))
-    zc = bz + P.BREAKOUT_USB_HEIGHT
-    items.append(Item("ribbon_plug_breakout", cq.Solid.makeBox(hh, hl, hn, cq.Vector(bx - hh, by + bw / 2 - hl / 2, zc - hn / 2)), STEEL, "part"))
+    wc = w_tape - P.BREAKOUT_USB_HEIGHT
+    items.append(Item("ribbon_plug_breakout", _p(plate_box(bx - hh, bx, bv + bw / 2 - hl / 2, bv + bw / 2 + hl / 2, wc - hn / 2, wc + hn / 2)), STEEL, "part"))
     # the ribbon's turn from the drop to the breakout plug, render only
     drop_end = P.plate_to_case(xr, v, w_end)
-    a, b = cq.Vector(*drop_end), cq.Vector(bx - hh / 2, by + bw / 2, zc + hn / 2)
+    a, b = cq.Vector(*drop_end), cq.Vector(*P.plate_to_case(bx - hh / 2, bv + bw / 2, wc - hn / 2))
     items.append(Item("ribbon_turn", cq.Solid.makeCylinder(1.0, (b - a).Length, a, b - a), MODULE, "look"))
+    # its spare length, folded flat under the cradle plate behind the breakout
+    (fx0, fx1), (fv0, fv1), (fw0, fw1) = P.RIBBON_FOLD
+    items.append(Item("ribbon_fold", _p(plate_box(fx0, fx1, fv0, fv1, fw0, fw1)), MODULE, "space"))
 
     # the everyday cable from the Mac, render only
     ow, oh = P.USB_PLUG_OVERMOLD
@@ -179,6 +213,61 @@ def usb_link_parts(plate_t, wall_t, floor_z):
     items.append(Item("mac_plug", _fillet(plug, "|Y", oh / 2 - 0.01), CABLE, "look"))
     items.append(Item("mac_cable", cq.Solid.makeCylinder(2.0, 40, cq.Vector(jx, depth + ft + 22, jz), cq.Vector(0, 1, 0)), CABLE, "look"))
     return items
+
+
+def tube(points, r):
+    """A round wire or bundle of radius r along a polyline of case-frame
+    points, with a ball at each bend."""
+    pts = [cq.Vector(*p) for p in points]
+    parts = [cq.Solid.makeCylinder(r, (b - a).Length, a, b - a) for a, b in zip(pts, pts[1:])]
+    parts += [cq.Solid.makeSphere(r, p, angleDegrees1=-90, angleDegrees2=90) for p in pts[1:-1]]
+    return parts[0].fuse(*parts[1:]).clean() if len(parts) > 1 else parts[0]
+
+
+# The harness wires beyond the bundles' ends, each to just short of the pin or
+# rail it is soldered to (plate x, v, w): the trunk's 5 key wires (YES I, then
+# the A pins of YES, LATER, HOLD and SHOW ME) and its 2 power wires (strip +
+# and -), and the knob bundle's 4 wires (VIN, SDA, SCL, GND). The last stretch
+# into each pin or rail is left out: it ends inside its part.
+def _trunk_branches():
+    kx = P.KEY_XS
+    keys = [((36.0, 34.0, -16.0), (kx[0] + 5.08, 27.0, -12.0))]  # 27.0: behind the I rows, below the speaker holder
+    keys += [((x0, 33.0, -16.0), (x, 27.0, -12.0)) for x0, x in zip((34.0, 50.0, 64.0, 79.0), kx)]
+    rails = [((x, 46.0, -12.0), (x, 42.0, -8.0)) for x in P.STRIP_RAILS]
+    return keys + rails
+
+
+def _knob_branches():
+    pin_x = {name: P.KNOB_X + (k - (P.KNOB_ROW_PINS - 1) / 2) * 2.54 for k, name in enumerate(("INT", "SDA", "SCL", "GND", "3Vo", "VIN"))}
+    return [((pin_x[name], 31.0, -15.5),) for name in ("VIN", "SDA", "SCL", "GND")]
+
+
+def _harness(pins, path, bundle_d, branches):
+    """One harness channel: the wires leave the plug at the end of its tails,
+    run together as a bundle along path, and split there to their parts."""
+    w_tails = -P.SHEET_T - P.MODULE_PCB_REAR - P.HEADER_HEIGHT - P.HEADER_PLUGS + P.PLUG_TURN
+    xs, vs = zip(*(socket_pin(n) for n in pins))
+    start = (sum(xs) / len(xs), sum(vs) / len(vs), w_tails)
+    shape = tube([P.plate_to_case(*p) for p in (start,) + path], bundle_d / 2)
+    wires = [tube([P.plate_to_case(*p) for p in (path[-1],) + b], P.HARNESS_WIRE_D / 2) for b in branches]
+    return shape.fuse(*wires).clean()
+
+
+def wiring_items(face_t):
+    """The wiring inside the case that the fit check keeps room for: the power
+    strip under the face, and the harness from the plug in the 40-pin socket
+    under the cradle plate: the trunk to the keys and the strip, and the knob
+    bundle. face_t is the face's thickness where the strip sticks on."""
+    x0, x1 = P.STRIP_X
+    v0, v1 = P.STRIP_V
+    strip = plate_box(x0, x1, v0, v1, -face_t - P.STRIP_FOAM - P.STRIP_BOARD, -face_t)
+    trunk = _harness((1, 5, 11, 12, 14, 15, 17), P.TRUNK_PATH, P.TRUNK_D, _trunk_branches())
+    knob = _harness((2, 4, 6, 10), P.KNOB_PATH, P.KNOB_BUNDLE_D, _knob_branches())
+    return [
+        Item("power_strip", _p(strip), PCB, "part"),
+        Item("harness_trunk", trunk, CABLE, "wire", through=("header_plugs",)),
+        Item("harness_knob", knob, CABLE, "wire", through=("header_plugs",)),
+    ]
 
 
 def _fillet(shape, selector, r, faces=False):
@@ -245,6 +334,7 @@ def metal_items(keycap=None):
         for x in P.BASE_SCREWS_X:
             items.append(Item(f"flangenut{len(items)}", cq.Solid.makeCylinder(3.0, P.S_M3_PROUD, cq.Vector(x, y, 2 * t)), STEEL, "hw"))
     items += bought_parts(keycap)
+    items += wiring_items(t)
     items.append(logo_item())
     return items
 
@@ -262,12 +352,14 @@ def printed_items(keycap=None):
     ]
     items += cradle_items()
     items += bought_parts(keycap, back_wall_t=P.PRINT_WALL)
+    items += wiring_items(P.PRINT_WALL)
     return items
 
 
 def interference(items, tol=0.01):
     """Pairs of items whose solids overlap by more than tol cubic mm.
-    Items marked "look" are render-only and skipped."""
+    Items marked "look" are render-only and skipped, and so are pairs one of
+    which names the other in its through list."""
     solid = [it for it in items if it.kind != "look"]
     boxes = [it.shape.BoundingBox() for it in solid]
     hits = []
@@ -275,6 +367,8 @@ def interference(items, tol=0.01):
         for j in range(i + 1, len(solid)):
             a, b = boxes[i], boxes[j]
             if a.xmax < b.xmin or b.xmax < a.xmin or a.ymax < b.ymin or b.ymax < a.ymin or a.zmax < b.zmin or b.zmax < a.zmin:
+                continue
+            if solid[j].name in solid[i].through or solid[i].name in solid[j].through:
                 continue
             vol = solid[i].shape.intersect(solid[j].shape).Volume()
             if vol > tol:

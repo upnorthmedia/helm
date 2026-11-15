@@ -163,6 +163,72 @@ class FitTest(unittest.TestCase):
             hits = assembly.interference(assembly.metal_items())
         self.assertIn(("cradle", "header_plugs"), {(a, b) for a, b, _ in hits})
 
+    def test_header_pins_must_be_trimmed(self):
+        """Negative control: the NeoKeys' and the knob's extra-long header
+        pins left as soldered (6.13 mm above the board, 7.73 mm below the
+        plastic) hit the printed face, and the NeoKeys' hit the metal one, so
+        the check would notice a step that skips the trim."""
+        from unittest import mock
+
+        from helm_case import assembly
+        from helm_case import params as P
+
+        as_soldered = (mock.patch.object(P, "PIN_TRIM_TOP", P.HEADER_PIN_SIDE - P.NEOKEY_PCB_THICKNESS), mock.patch.object(P, "PIN_TRIM_TAIL", P.HEADER_PIN_SIDE))
+        with as_soldered[0], as_soldered[1]:
+            printed = {(a, b) for a, b, _ in assembly.interference(assembly.printed_items())}
+            metal = {(a, b) for a, b, _ in assembly.interference(assembly.metal_items())}
+        keys = {f"keypins{i}" for i in range(4)}
+        self.assertEqual(printed, {("print_cover", p) for p in keys | {"knobpins"}})
+        self.assertEqual(metal, {("cover", p) for p in keys})
+
+    def test_a_part_in_a_wire_path_is_caught(self):
+        """Negative control: a 3 mm cube dropped on each harness bundle's
+        path, on each branch's last stretch, in the power strip and in the
+        spare-wire spaces collides with that item and nothing else of the
+        wiring."""
+        from helm_case import assembly
+        from helm_case import params as P
+
+        wiring = assembly.wiring_items(P.SHEET_T) + [it for it in assembly.metal_items() if it.kind == "space"]
+        probes = {
+            "harness_trunk": [P.TRUNK_PATH[0], P.TRUNK_PATH[1]] + [b[-1] for b in assembly._trunk_branches()],
+            "harness_knob": [P.KNOB_PATH[0], P.KNOB_PATH[1]] + [b[-1] for b in assembly._knob_branches()],
+            "power_strip": [(sum(P.STRIP_X) / 2, sum(P.STRIP_V) / 2, -P.SHEET_T - 1.0)],
+            "ribbon_fold": [tuple(sum(r) / 2 for r in P.RIBBON_FOLD)],
+        }
+        names = {it.name for it in wiring}
+        for target, points in probes.items():
+            for x, v, w in points:
+                cube = cq.Solid.makeBox(3, 3, 3, cq.Vector(*P.plate_to_case(x, v, w)) - cq.Vector(1.5, 1.5, 1.5))
+                hits = assembly.interference(wiring + [assembly.Item("probe", cube, (0, 0, 0), "part")])
+                self.assertEqual({a for a, b, _ in hits if b == "probe"} & names, {target}, (target, x, v, w))
+        (x0, _), y, z = P.JACK_LOOP[0], *(sum(r) / 2 for r in P.JACK_LOOP[1:])
+        cube = cq.Solid.makeBox(3, 3, 3, cq.Vector(x0 + 0.5, y, z - 1.5))  # beside the lead, which runs through the loop's room
+        hits = assembly.interference(wiring + [assembly.Item("probe", cube, (0, 0, 0), "part")])
+        self.assertEqual({a for a, b, _ in hits if b == "probe"}, {"jack_loop"})
+
+    def test_a_cradle_leg_in_the_trunk_is_caught(self):
+        """Negative control: the back right cradle leg moved 25 mm toward the
+        middle stands in the harness trunk's path."""
+        from unittest import mock
+
+        from helm_case import assembly
+        from helm_case import params as P
+
+        legs = list(P.CRADLE_LEGS)
+        legs[3] = (legs[3][0] - 25.0, legs[3][1])
+        with mock.patch.object(P, "CRADLE_LEGS", tuple(legs)):
+            hits = assembly.interference(assembly.printed_items())
+        self.assertIn(("cradle", "harness_trunk"), {(a, b) for a, b, _ in hits})
+
+    def test_the_harness_plug_fits_under_the_socket(self):
+        """The homemade 2 x 10 plug's envelope below the socket: socket-side
+        pin left showing in the worst case, plastic, trimmed tails and the
+        wires' turn."""
+        from helm_case import params as P
+
+        self.assertAlmostEqual(P.HEADER_PLUGS, 2.63 + 2.54 + 3.0 + 3.0, places=6)
+
     def test_flashing_plug_needs_the_service_slot(self):
         """Negative control: without the slot, the flashing plug hits the left
         wall, so the interference check would notice a missing or misplaced

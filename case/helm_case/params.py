@@ -63,7 +63,26 @@ MODULE_USB_DEPTH = 9.3  # glass to the USB-C centres: on the PCB's rear face (de
 HEADER_PIN1_FROM_FAR_EDGE = 14.17
 HEADER_ROWS_IN = (3.1, 5.6)
 HEADER_HEIGHT = 5.1
-HEADER_PLUGS = 20.0  # jumper housings plugged in from below, plus the wires' bend (ASSUMED)
+# Extra-long break-away header (Adafruit 400; VENDOR: 4UCON 18072 drawing):
+# 0.64 mm square pins, 7.73 mm of pin each side of a 2.54 mm plastic body.
+# On the NeoKeys and the knob board it is soldered with the plastic under the
+# board, so 6.13 mm of pin stands up beside the switch or encoder. Both ends
+# are trimmed: that side to 1 mm above the board before the part goes into
+# the cover, the long ends to 3 mm below the plastic once the wires are
+# soldered to them.
+HEADER_PIN = 0.64
+HEADER_PIN_SIDE = 7.73
+HEADER_BODY = 2.54
+PIN_TRIM_TOP = 1.0  # pin left above the board's top
+PIN_TRIM_TAIL = 3.0  # pin left below the plastic
+# The harness plug pushed into the socket from below: two 10-pin pieces of
+# that header glued side by side into a 2 x 10 block on socket pins 1 to 20,
+# the wires soldered to its tails. Its envelope below the socket face: up to
+# 2.63 mm of the 7.73 mm socket-side pins left showing if they bottom out in
+# the 5.1 mm socket, the plastic, the tails trimmed to 3.0 mm, and the wires'
+# turn toward the cradle (ASSUMED: the 3 mm the harness routes allow), 11.17 mm.
+PLUG_TURN = 3.0
+HEADER_PLUGS = (HEADER_PIN_SIDE - HEADER_HEIGHT) + HEADER_BODY + PIN_TRIM_TAIL + PLUG_TURN
 
 # Placement on the face (design choices)
 MODULE_X = 9.05  # USB edge, case x; leaves room for the ribbon plug beside the left wall
@@ -107,6 +126,10 @@ KEY_HOLE = 14.00  # Cherry: 14 mm +/- 0.05 for a 1.5 mm plate (VENDOR)
 KEY_PLATE_TO_PCB = 5.0  # plate top to switch PCB top (VENDOR, Cherry MX)
 NEOKEY_PCB = (0.75 * INCH, 0.85 * INCH)  # 19.05 x 21.59 (VENDOR, Adafruit 4978)
 NEOKEY_PCB_THICKNESS = 1.6  # ASSUMED
+# Its two 5-pin header rows, 8.89 mm either side of the key centre along v:
+# I toward the module, O toward the front (ASSUMED, from the board's photo)
+NEOKEY_PIN_ROW = 8.89
+NEOKEY_ROW_PINS = 5
 KEY_STACK_DEPTH = 13.0  # plate top to the bottom of socket, pins and wires (ASSUMED)
 SWITCH_TOP_HEIGHT = 6.6  # plate top to the switch's top housing top (ASSUMED)
 MX_STEM = (4.0, 3.6)  # Cherry MX cross stem: outside diameter, height above the housing (ASSUMED, render)
@@ -132,6 +155,11 @@ KNOB_D = 24.0  # DROK 6 mm aluminum knob: 24 mm flange, 14.5 mm tall (VENDOR, Am
 KNOB_HEIGHT = 14.5
 KNOB_X = 112.0
 KNOB_V = 15.0
+# The board's 6-pin header row, on the edge toward the module: the only edge
+# where its trimmed pins clear the case (ASSUMED 10.2 mm from the centre, from
+# the board's photo)
+KNOB_PIN_ROW = 10.2
+KNOB_ROW_PINS = 6
 
 # ---------------------------------------------------------------------------
 # Speaker: the 8 ohm 2 W speaker that comes with the LCD-5 (GH1.25 plug),
@@ -184,11 +212,18 @@ BACK_JACK_NUT = (14.0, 3.0)  # hex nut inside: across flats, thickness
 BACK_JACK_LEAD_D = 3.5  # six wires, 175 mm (ASSUMED bundle diameter)
 BACK_JACK_X = 30.0  # behind the module's left half
 BACK_JACK_Z = 15.0  # centre above the desk: the lowest that keeps the hole 6 mm from the bottom bend
-# Adafruit 4090 USB-C breakout, receptacle on one short edge (VENDOR: 20.4 x 14.2 x 5.0)
-BREAKOUT = (20.4, 14.2, 5.0)  # along x, along y, height
-BREAKOUT_TAPE = 1.0  # foam tape under it
-BREAKOUT_XY = (12.5, 66.0)  # receptacle edge (facing the left wall), front edge
-BREAKOUT_USB_HEIGHT = 4.2  # receptacle centre above the board's underside (ASSUMED)
+# Adafruit 4090 USB-C breakout, receptacle on one short edge (VENDOR: 20.4 x
+# 14.2 x 5.0), on foam tape under the cradle plate's left front corner, pads
+# toward the floor: the cradle is fitted before the base, so the breakout can
+# be plugged and soldered before the case closes.
+BREAKOUT = (20.4, 14.2, 5.0)  # along x, along v, height
+BREAKOUT_TAPE = 1.0  # foam tape between it and the cradle plate
+BREAKOUT_XV = (15.0, 62.0)  # plate x of the receptacle edge (facing the left wall), plate v of the front edge
+BREAKOUT_USB_HEIGHT = 4.2  # receptacle centre from the board's taped side (ASSUMED)
+# The jack's lead from the jack's inner end to the breakout's pads, with its
+# spare looped beside it (case x, y, z): waypoints, then the loop's room
+JACK_LEAD_PATH = ((30.5, 112.0, 12.5), (32.0, 95.0, 12.0), (33.5, 80.0, 13.5))
+JACK_LOOP = ((24.0, 37.0), (84.0, 100.0), (8.0, 13.0))
 # Adafruit 6370 slim right-angle USB-C ribbon, 100 mm: the ribbon leaves each
 # plug along the plug's narrow axis, so in the native port it drops straight
 # down beside the module. Head and ribbon width estimated from Adafruit's
@@ -197,6 +232,36 @@ RIBBON_PLUG_HEAD = (12.0, 7.3, 3.5)  # along the receptacle's wide side, along i
 RIBBON_WIDTH = 5.8
 RIBBON_THICKNESS = 0.4  # ASSUMED
 RIBBON_DROP_END = 12.0  # the ribbon's straight drop ends this far above the floor, then turns to the breakout
+RIBBON_FOLD = ((14.0, 28.0), (79.0, 95.0), (-21.0, -18.3))  # plate x, v, w: its spare folded flat under the cradle plate, behind the breakout
+
+# ---------------------------------------------------------------------------
+# Wiring inside the case. The case is built face down, so every wire is cut
+# and soldered with its part in place: the harness from the plug in the
+# 40-pin socket to the keys, the knob and the power strip, under the cradle
+# plate. Routes were checked against a voxel model of the closed printed
+# enclosure; pin orders on the NeoKey and knob rows are approximate.
+# ---------------------------------------------------------------------------
+# Power strip: the Perma-Proto's (Adafruit 1609) two power rails cut off as
+# a strip 6 or 7 holes long, on 1.6 mm adhesive foam under the face between
+# the speaker and light holders. It splits 5V and GND for the keys and the
+# light bar. Plate x and v ranges, and the + and - rails' x.
+STRIP_X = (73.0, 82.0)
+STRIP_V = (28.0, 44.0)
+STRIP_FOAM = 1.6
+STRIP_BOARD = 1.6  # ASSUMED
+STRIP_RAILS = (79.5, 77.0)
+# 28 AWG wire, 1.2 mm over the insulation, and the bundles where wires run
+# together: 7 in the trunk to the keys and the strip, 4 to the knob (ASSUMED,
+# measure your wire)
+HARNESS_WIRE_D = 1.2
+TRUNK_D = 3.7
+KNOB_BUNDLE_D = 3.0
+# The bundles' paths under the cradle plate, plate (x, v, w), each from where
+# its wires leave the plug: the trunk diagonally between the leg columns to
+# under the module's front strip, the knob bundle straight forward inside the
+# right legs and under the cradle's front arm
+TRUNK_PATH = ((98.0, 108.0, -21.5), (70.0, 52.0, -20.5))
+KNOB_PATH = ((108.0, 104.0, -21.5), (109.0, 48.0, -20.0))
 
 # ---------------------------------------------------------------------------
 # Logo: wheel + "helm" (H1), laser engraved on the anodized face by a local
