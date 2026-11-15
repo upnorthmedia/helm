@@ -23,6 +23,6 @@ phase,part,buy_qty,used_in_build,vendor,sku,url,unit_price_usd,line_total_usd,st
 3,"USB-C screw panel mount jack to 6-pin JST PH lead, 175 mm",1,1,Adafruit,6153,https://www.adafruit.com/product/6153,2.95,2.95,In stock,yes,"The everyday cable's jack, low in the back wall; CC pulled down with 5.1k inside"
 3,"USB Type C breakout board, downstream connection",1,1,Adafruit,4090,https://www.adafruit.com/product/4090,2.95,2.95,In stock,yes,"The jack's lead is soldered to it (VBUS, GND, D+, D-)"
 3,"Slim right-angle USB C to USB C cable, 100 mm",1,1,Adafruit,6370,https://www.adafruit.com/product/6370,6.95,6.95,In stock,yes,"Breakout to the board's ""USB"" receptacle; Adafruit verified power, data, and CC"
-3,Perma-Proto half-size board,1,1,Adafruit,1609,https://www.adafruit.com/product/1609,4.50,4.50,11,yes,"Cut down to a strip of its two power rails, about 9 x 17 mm: the soldered 5 V and ground distribution in the case"
+3,Perma-Proto half-size board,1,1,Adafruit,1609,https://www.adafruit.com/product/1609,4.50,4.50,11,yes,"Cut down to a strip of its two power rails, 8.89 x 17.78 mm: the soldered 5 V and ground distribution in the case"
 3,"Female-male jumper wires, 20 x 150 mm",1,about 12,Adafruit,1954,https://www.adafruit.com/product/1954,1.95,1.95,In stock,yes,"Ends cut off: the 11 harness wires from the plug to the parts. Any 150 mm jumpers do, including spare 1957s"
 3,"Hook-up wire spool set, 22 AWG solid, 6 colors (optional)",1,,Adafruit,1311,https://www.adafruit.com/product/1311,15.95,15.95,In stock,yes,Skip if you have hook-up wire
