@@ -141,7 +141,7 @@ Why keep the CRC: the Pro's own USB link "loses bytes host to device" ([harness-
 
 ## Not verified
 
-- How firstmate reacts to Helm's notes in practice, and how fast the summary republishes on a busy day (measure in phase 0).
+- How fast the summary republishes on a busy day. How firstmate reacts to Helm's notes in practice was measured on 2026-11-15: see [verification.md](../verification.md).
 - The second mate duplicate rule above (an observed key shape, not a contract).
 - The remote second mate cache path (no remote second mates here).
 - Whether the CH343P path drops bytes.
