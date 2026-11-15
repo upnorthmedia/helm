@@ -1,0 +1,57 @@
+name: firstmate drift
+
+# Once a week, the firstmate contract tests run against firstmate's main
+# instead of the commit pinned in scripts/test-firstmate-contract.sh. When
+# they fail, this opens an issue here, or comments on the one already open,
+# so a change upstream is seen before a pin bump or a firstmate home on main
+# meets it. It runs on a schedule (or by hand) and never on a pull request,
+# and the test step may fail without failing the run, so it blocks nothing:
+# the pinned job in tests.yml is the one that gates merges.
+on:
+  schedule:
+    - cron: "17 7 * * 1" # Mondays, 07:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firstmate-drift
+  cancel-in-progress: false
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write # open or comment on the drift issue, with this run's own token
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.x"
+      - name: Contract tests against firstmate main
+        id: contract
+        continue-on-error: true
+        run: scripts/test-firstmate-contract.sh main
+      - name: Open or update the drift issue
+        if: steps.contract.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ steps.contract.outputs.commit }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="firstmate contract drift"
+          pin="$(sed -n 's/^FIRSTMATE_PIN=//p' scripts/test-firstmate-contract.sh)"
+          body="The firstmate contract tests failed against kunchenguid/firstmate main at commit ${COMMIT:-unknown} (the pinned commit is $pin). Run: $RUN_URL
+
+          Pull requests are not affected: they test the pinned commit. Before bumping the pin, find what changed upstream and update Helm (or the tests, if only the test home's setup moved). Close this issue once the tests pass against main again."
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" \
+            --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")"
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          fi
