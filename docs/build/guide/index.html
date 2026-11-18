@@ -1887,9 +1887,10 @@
                   <p>
                     The fit step also references parts listed under phase 3:
                     <b>x1</b> Adafruit 6153 back jack, <b>x1</b> 4090 breakout,
-                    <b>x1</b> 6370 ribbon, <b>x4</b> feet (550), female-male
-                    jumpers (1954, BOM use about 12), and a 1609 Perma-Proto for
-                    the later soldered power distribution.
+                    <b>x1</b> 6370 ribbon, <b>x4</b> feet (550), 11 jumpers to cut
+                    down for the harness wires (any 150 mm jumpers), and a 1609
+                    Perma-Proto, cut down to a power strip for the later
+                    soldered power distribution.
                   </p>
                   <p>
                     You can test their physical clearance here. The soldered
@@ -3570,62 +3571,73 @@ esptool.py --chip esp32p4 -p /dev/cu.wchusbserialXXXX flash_id</code></pre>
                 <p>
                   This is a physical fit test. Do not trap the breadboard
                   inside. A complete closed-case electrical test requires the
-                  in-case harness referenced by assembly 2.3; construction of
-                  that soldered harness is outside this guide. Mark any
-                  dependent check “not tested”.
+                  in-case harness from assembly 3.4; this guide does not build
+                  it. The fit follows the face-down order of assembly 3.5. Mark
+                  any dependent check “not tested”.
                 </p>
               </aside>
               <ol class="fit-sequence">
                 <li>
-                  <b>Base.</b> Put the <strong>1.6 mm</strong> foam pad on the
-                  cradle. Attach its four legs to the floor with
-                  <strong>x4 M3 x 6</strong> screws from below. Confirm all five
-                  locating tabs are seated.
+                  <b>Trim the tall pins.</b> Clip the header pins that stand up
+                  beside each NeoKey’s switch and beside the knob’s encoder to
+                  about <strong>1 mm</strong> above the board. As soldered they
+                  hit the underside of the face, and a NeoKey cannot seat.
+                  Leave the long ends under the plastic.
                 </li>
                 <li>
-                  <b>Controls.</b> Press switches into the cover from the front;
-                  NeoKeys attach from inside. Left to right: YES, LATER, HOLD,
-                  SHOW ME. Fit the caps. Mount the encoder bushing from inside,
-                  nut on top; fit the knob and check it clears the nut.
+                  <b>Controls, cover face up.</b> Press switches into the cover
+                  from the front, their two
+                  <strong>metal pins toward the front edge</strong>. Mount the encoder bushing from inside, nut on
+                  top, with the board’s
+                  <strong>header row toward the module</strong>. Then lay the
+                  cover face down on a towel and push the NeoKeys onto the
+                  switches from inside: YES nearest the left wall.
                 </li>
                 <li>
                   <b>Light and sound.</b> Place the stick LEDs toward the
-                  diffuser, <strong>DIN toward the keys, to the left</strong>.
-                  The holder’s tongue seats in the
-                  <strong>49 x 6 mm</strong> window. Centre the speaker holder
-                  under its slots. Use removable VHB for these test bonds.
+                  diffuser, <strong>DIN toward the keys</strong>. The holder’s
+                  tongue seats in the <strong>49 x 6 mm</strong> window. Centre
+                  the speaker holder under its slots. Use removable VHB for
+                  these test bonds.
                 </li>
                 <li>
-                  <b>Cable space.</b> Check the back jack’s flange outside and
-                  nut inside, slot horizontal. Trial-position the 4090 on foam
-                  tape under the module’s left half, receptacle facing left.
-                  Assembly locates it about
-                  <strong
-                    >66 mm from the front and 12 mm from the left wall</strong
-                  >. If its unmodified lead prevents seating, leave the jack
-                  check incomplete and use the linked harness instructions
-                  later.
+                  <b>Back jack.</b> Check the flange outside and nut inside,
+                  slot horizontal. The 4090 cannot pass the 11.4 mm hole, so
+                  the lead goes through before it is cut and soldered. If yours
+                  is not soldered yet, leave the jack check incomplete.
                 </li>
                 <li>
-                  <b>Module.</b> Place it glass up between the tabs,
-                  <strong>USB edge left</strong>. Trial-fit the 6370 ribbon to
-                  the breakout and the native USB socket, nearer the back. It
-                  drops beside the module before turning underneath. Do not
-                  pinch it or the speaker lead.
+                  <b>Module.</b> Lay it face down in the face’s pocket,
+                  <strong>USB edge left</strong>, about
+                  <strong>4 mm</strong> from each pocket edge. Plug the speaker
+                  into SPK (J5, button edge at the USB-C end; it should clear
+                  the cradle plate by about 0.3 mm), and the 6370 ribbon into
+                  the native USB socket, nearer the back.
+                </li>
+                <li>
+                  <b>Cradle.</b> Put the <strong>1.6 mm</strong> foam pad on the
+                  cradle’s module side, confirm all five locating tabs are
+                  seated, and set it on the module’s back, legs up. Trial-place
+                  the 4090 on foam tape on the plate’s outer face at its
+                  <strong>left front corner</strong>, its receptacle’s long edge
+                  facing left so the board runs front to back,
+                  and plug the ribbon in. Do not pinch it or the speaker lead.
                 </li>
                 <li>
                   <b>Before closing.</b> Once wiring is ready, test native USB
                   power-on while POWER is reachable. If it needs a press,
                   <strong>stop and report it to the case maintainer</strong>.
-                  POWER is inaccessible with the cover on. Disconnect power
+                  POWER is inaccessible with the base on. Disconnect power
                   again before adjusting or closing.
                 </li>
                 <li>
-                  <b>Close gently.</b> Lower the cover between the base’s side
-                  walls. Glass meets the underside of the face; foam takes up
-                  tolerance. Use <strong>x6 M3 x 6</strong> screws from below
-                  into the flange inserts. Stop if closing forces the glass,
-                  cables, or parts. Feet, if fitted, go clear of screw heads.
+                  <b>Close gently.</b> Lower the base onto the cover as a lid,
+                  its side walls outside the cover. Use
+                  <strong>x6 M3 x 6</strong> screws into the flange inserts,
+                  then <strong>x4</strong> into the cradle’s legs. Stop if
+                  closing forces the glass, cables, or parts. Turn it over, fit
+                  the caps and the knob, and check the knob clears the nut.
+                  Feet, if fitted, go clear of screw heads.
                 </li>
               </ol>
               <aside class="note">
@@ -3855,22 +3867,23 @@ esptool.py --chip esp32p4 -p /dev/cu.wchusbserialXXXX flash_id</code></pre>
             <article class="measurement">
               <div class="measure-title">
                 <span>03</span>
-                <h4>Header and jumper clearance</h4>
+                <h4>Header and plug clearance</h4>
               </div>
               <div class="measure-grid">
                 <div>
                   <p>
                     <b>Repo assumption</b><br />Rows 3.1 / 5.6 mm from PCB edge;
-                    socket 5.1 mm proud; 20 mm for plugs and wire bend below.
+                    socket 5.1 mm proud; 11.17 mm below it for the 2 x 10
+                    harness plug, its 3 mm tails and the wires’ turn.
                   </p>
                   <p>
                     <b>Measure with / from</b><br />Calipers; measure socket
-                    position and height, then the actual fitted jumper housings
-                    and bend space.
+                    position and height, then how far the plug’s plastic stands
+                    off the socket when pushed home (2.63 mm allowed).
                   </p>
                   <p>
                     <b>Good physical result</b><br />Cradle clears the socket
-                    and plugs; wires are not crushed when the cover closes.
+                    and plug; wires are not crushed when the base closes.
                   </p>
                 </div>
                 <div>
@@ -3879,9 +3892,10 @@ esptool.py --chip esp32p4 -p /dev/cu.wchusbserialXXXX flash_id</code></pre>
                   </p>
                   <p>
                     <b>If it differs or fails</b><br />Cradle back edge and
-                    wiring clearance. A full wire-routing model is not provided.
-                    Record the difference; review the parameter, rebuild, and
-                    repeat the affected fit check.
+                    wiring clearance. The harness routes are modelled as
+                    keep-out space, not tried in a case. Record the difference;
+                    review the parameter, rebuild, and repeat the affected fit
+                    check.
                   </p>
                   <label class="field"
                     >Actual reading (mm) + fit result<textarea
@@ -4483,9 +4497,10 @@ esptool.py --chip esp32p4 -p /dev/cu.wchusbserialXXXX flash_id</code></pre>
                 <div>
                   <p class="parameter">BACK_JACK_LEAD_D</p>
                   <p>
-                    <b>If it differs or fails</b><br />Clearance only. Full lead
-                    routing is not modelled. Record the difference; review the
-                    parameter, rebuild, and repeat the affected fit check.
+                    <b>If it differs or fails</b><br />Clearance only. The lead’s
+                    route and its spare loop are modelled, not tried. Record the
+                    difference; review the parameter, rebuild, and repeat the
+                    affected fit check.
                   </p>
                   <label class="field"
                     >Actual reading (mm) + fit result<textarea
@@ -5278,8 +5293,9 @@ esptool.py --chip esp32p4 -p /dev/cu.wchusbserialXXXX flash_id</code></pre>
                     </dd>
                     <dt>Check</dt>
                     <dd>
-                      Check header housings, speaker lead, ribbon bend,
-                      back-jack lead, and service-slot sag.
+                      Check the harness plug and bundles, untrimmed header pins,
+                      speaker lead, ribbon fold, back-jack lead, and
+                      service-slot sag.
                     </dd>
                     <dt>Fix / next action</dt>
                     <dd>

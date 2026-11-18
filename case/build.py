@@ -132,6 +132,7 @@ def main():
     if not args.no_render:
         from helm_case.render import render
 
+        items = [it for it in items if it.kind != "space"]  # room kept for spare wire, not a part
         no_flash = ("flash_plug",)  # the flashing cable is only plugged in to flash
         render(items, OUT / "png" / "helm_case_metal.png", azimuth=-38, elevation=26, zoom=1.35, skip=no_flash)
         render(items, OUT / "png" / "helm_case_back.png", azimuth=200, elevation=16, zoom=1.35, skip=no_flash)

@@ -7,7 +7,7 @@ phase,part,buy_qty,used_in_build,vendor,sku,url,unit_price_usd,line_total_usd,st
 1,"NeoPixel Stick, 8 RGB LEDs",1,1,Adafruit,1426,https://www.adafruit.com/product/1426,5.95,5.95,61,yes,"The light bar, last on the GPIO21 chain"
 1,Half-size breadboard,1,1,Adafruit,64,https://www.adafruit.com/product/64,4.95,4.95,In stock,yes,Phase 1 only
 1,"Male-male jumper wires, 20 x 150 mm",1,about 15,Adafruit,1957,https://www.adafruit.com/product/1957,1.95,1.95,In stock,yes,From the board's 40-pin socket to the breadboard
-1,"Extra-long break-away 0.1 inch male header, 5 x 16 pin",1,about 50 pins,Adafruit,400,https://www.adafruit.com/product/400,3.00,3.00,In stock,yes,"Headers for the NeoKeys, the encoder board, the stick, and the Perma-Proto"
+1,"Extra-long break-away 0.1 inch male header, 5 x 16 pin",1,about 50 pins,Adafruit,400,https://www.adafruit.com/product/400,3.00,3.00,In stock,yes,"Headers for the NeoKeys, the encoder board, and the stick; in the case, two 10-pin pieces glued into the harness's 2 x 10 plug"
 1,"Black relegendable keycaps, 10 pack (optional)",1,4,Adafruit,5662,https://www.adafruit.com/product/5662,7.50,7.50,34,yes,Bench caps until the backlit caps (phase 3) arrive
 1,"USB-C to USB-C cable, 1 m (optional)",2,2,Adafruit,4199,https://www.adafruit.com/product/4199,9.95,19.90,In stock,yes,"One for the link (""USB"" on the bench, the back jack in the case), one for flashing (""USB TO UART""). Any data-capable cables work"
 2,"Brass heat-set inserts, M3 x 4 mm, 50 pack",1,4,Adafruit,4255,https://www.adafruit.com/product/4255,5.95,5.95,In stock,yes,"Cradle legs; Adafruit gives only the 4.2 mm outside diameter, the case's holes are 4.0 mm (PRINT_INSERT_D)"
@@ -23,6 +23,6 @@ phase,part,buy_qty,used_in_build,vendor,sku,url,unit_price_usd,line_total_usd,st
 3,"USB-C screw panel mount jack to 6-pin JST PH lead, 175 mm",1,1,Adafruit,6153,https://www.adafruit.com/product/6153,2.95,2.95,In stock,yes,"The everyday cable's jack, low in the back wall; CC pulled down with 5.1k inside"
 3,"USB Type C breakout board, downstream connection",1,1,Adafruit,4090,https://www.adafruit.com/product/4090,2.95,2.95,In stock,yes,"The jack's lead is soldered to it (VBUS, GND, D+, D-)"
 3,"Slim right-angle USB C to USB C cable, 100 mm",1,1,Adafruit,6370,https://www.adafruit.com/product/6370,6.95,6.95,In stock,yes,"Breakout to the board's ""USB"" receptacle; Adafruit verified power, data, and CC"
-3,Perma-Proto half-size board,1,1,Adafruit,1609,https://www.adafruit.com/product/1609,4.50,4.50,11,yes,Soldered 5 V and ground distribution in the case
-3,"Female-male jumper wires, 20 x 150 mm",1,about 12,Adafruit,1954,https://www.adafruit.com/product/1954,1.95,1.95,In stock,yes,Male end into the board's 40-pin socket
+3,Perma-Proto half-size board,1,1,Adafruit,1609,https://www.adafruit.com/product/1609,4.50,4.50,11,yes,"Cut down to a strip of its two power rails, 8.89 x 17.78 mm: the soldered 5 V and ground distribution in the case"
+3,"Female-male jumper wires, 20 x 150 mm",1,about 12,Adafruit,1954,https://www.adafruit.com/product/1954,1.95,1.95,In stock,yes,"Ends cut off: the 11 harness wires from the plug to the parts. Any 150 mm jumpers do, including spare 1957s"
 3,"Hook-up wire spool set, 22 AWG solid, 6 colors (optional)",1,,Adafruit,1311,https://www.adafruit.com/product/1311,15.95,15.95,In stock,yes,Skip if you have hook-up wire

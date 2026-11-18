@@ -23,8 +23,9 @@ The header is a **female socket** (Waveshare says a Raspberry Pi HAT needs a mal
 | 1 | 5V | All four NeoKey **VDD (+)**, NeoPixel Stick **5VDC** | |
 | 2 | 3V3 | Knob (Adafruit 5880) **VIN** | |
 | 4 | GPIO7, I2C SDA | Knob **SDA** | shared bus, knob at `HELM_KNOB_I2C_ADDR` (0x36) |
-| 5 | GND | Knob **GND**, all four NeoKey **GND (-)** and **C** (switch cathode), Stick **GND** | |
+| 5 | GND | All four NeoKey **GND (-)** and **C** (switch cathode), Stick **GND**; on the bench also the knob's **GND** | |
 | 6 | GPIO8, I2C SCL | Knob **SCL** | shared bus |
+| 10 | GND | Knob **GND**, in the case | |
 | 11 | GPIO5 | SHOW ME NeoKey **A** (switch anode) | `HELM_PIN_KEY_FOCUS` (5) |
 | 12 | GPIO3 | LATER NeoKey **A** | `HELM_PIN_KEY_LATER` (3) |
 | 14 | GPIO4 | HOLD NeoKey **A** | `HELM_PIN_KEY_HOLD` (4) |
@@ -63,7 +64,36 @@ The rest:
 
 Pad names (VIN, VDD, A, C, I, O, DIN, 5VDC) are the boards' silkscreen labels. Solder by label, not by position: the NeoKey has two 5-pin rows that carry the same signals except one, so check the silkscreen for which row has which.
 
-**Wires.** On the bench, male-male jumpers (Adafruit 1957) go from the header's socket to the breadboard, where the parts sit on their own headers. In the case, female-male jumpers (Adafruit 1954) go from the header (male end) to header pins soldered on the parts and on a Perma-Proto board that splits 5V and GND (female end).
+## Wires
+
+On the bench, male-male jumpers (Adafruit 1957) go from the header's socket to the breadboard, where the parts sit on their own headers.
+
+In the case, every wire is soldered at both ends except at one plug in the header's socket, and each is cut and soldered with its part in its final place ([assembly.md 3.4 and 3.5](assembly.md#34-solder-the-wiring)). Single jumper pins in the socket work loose: each is held by one contact, and the wire's own stiffness levers it out. One plug of 20 pins, with the wires taped down next to it, does not.
+
+- **The plug:** two 10-pin pieces of the extra-long header (Adafruit 400, the same strip the parts' headers come from) glued side by side into a 2 x 10 block. It covers socket pins 1 to 20; the harness uses 1 to 17. Trim one side's pins to about 3 mm and solder the wires to them; the other side goes into the socket. Leave the plug's other positions empty, above all 7 and 9 (the console) and 8 (GPIO2). Push it **flush against the socket's pin-1 end**, away from the USB-C ports. The block fits either way round and anywhere along the socket, so before pushing, check the pin 1 wire lands on the "5V" silkscreen and the pin 2 wire on "3V3". Tape the wires to the cradle within 20 mm of the plug, so nothing can lever it.
+- **The harness wires:** ordinary jumpers (the 1957 or 1954 kind) with both ends cut off right at the housings. Each runs at full length from the plug to its part and is trimmed to fit there. Adafruit lists them as 150 mm without saying whether that is the wire or the length with its housings, so cut the ends off one and measure it. The two YES wires (pins 15 and 17) need at least 145 mm of wire; every other run needs less. If yours are shorter, use longer wire for those two, or splice an extra piece onto each and heat-shrink the joint. If you would rather buy parts made for it, Adafruit's 2 x 20 male header (2822) and 300 mm jumpers (1955) also work; neither is needed.
+- **The power strip:** the Perma-Proto's two power rails cut off as a strip 8.89 x 17.78 mm ([assembly.md 3.4](assembly.md#34-solder-the-wiring) has the cut lines), stuck under the face between the speaker and the light bar. It splits 5V and GND for the keys and the stick.
+
+| Wire | From | To | Routed length (mm) |
+| --- | --- | --- | --- |
+| Harness | Plug pin 1 (5V) | Power strip + | 109 |
+| Harness | Plug pin 5 (GND) | Power strip - | 102 |
+| Harness | Plug pin 2 (3V3) | Knob VIN | 99 |
+| Harness | Plug pin 4 (SDA) | Knob SDA | 95 |
+| Harness | Plug pin 6 (SCL) | Knob SCL | 94 |
+| Harness | Plug pin 10 (GND) | Knob GND | 95 |
+| Harness | Plug pin 11 (GPIO5) | SHOW ME A | 108 |
+| Harness | Plug pin 12 (GPIO3) | LATER A | 118 |
+| Harness | Plug pin 14 (GPIO4) | HOLD A | 106 |
+| Harness | Plug pin 15 (GPIO21) | YES I | 130 |
+| Harness | Plug pin 17 (GPIO22) | YES A | 133 |
+| Cover, from the bench | SHOW ME VDD (O row) | Power strip + | at least 45 |
+| Cover, from the bench | SHOW ME GND (O row) | Power strip - | at least 45 |
+| Cover, from the bench | Power strip + | Stick 5VDC | at least 30 |
+| Cover, from the bench | Power strip - | Stick GND | at least 35 |
+| Cover, from the bench | SHOW ME O | Stick DIN | at least 55 |
+
+Routed lengths are measured along the planned routes in the closed case; the cover wires' minimums add room for a bend and two stripped ends. Both rows of each NeoKey run **C, A, I or O, GND, VDD**, 2.54 mm apart: with the I rows toward the module, from the left wall toward the knob, C is 5.08 mm left of the key's centre, A 2.54 mm left, I or O on the centre line, GND 2.54 mm right and VDD 5.08 mm right. The knob's row runs INT, SDA, SCL, GND, 3Vo, VIN from the left. These come from Adafruit's board files; still solder by the silkscreen labels, since Adafruit has restyled the NeoKey's silkscreen. The key row's own links (VDD and GND along the row, C to GND, each O to the next I) are short and unchanged. The NeoKeys' VDD, GND and C and the stick's power reach pins 1 and 5 through the row and the strip; the knob takes its GND from pin 10, so its four wires leave the plug together.
 
 ## The USB-C link in the case
 
@@ -94,7 +124,7 @@ Everything runs from the USB cable through the board's 5 V rail (plan D8: USB on
 | --- | --- | --- |
 | 5V (pin 1) | NeoKey VDD x4, Stick 5VDC | The stick is specified for 5 V (4 to 7 V); the NeoKey lights take 3 to 5 V |
 | 3V3 (pin 2) | Knob VIN | The encoder board runs on 3 to 5 V, and its I2C lines are pulled up to its VIN. On 5 V it would pull the board's 3.3 V I2C bus, shared with touch and both codecs, up to 5 V. **Never 5 V.** |
-| GND (pin 5) | Every part | On the breadboard run it to the ground rail, in the case to the Perma-Proto's ground strip |
+| GND (pin 5) | Every part | On the breadboard run it to the ground rail, in the case to the power strip's - rail (the knob takes its own GND from pin 10) |
 
 From the schematic: the header's 5V is the USB input after the ideal diodes, **before** the board's POWER switch, so it stays live whenever a cable is plugged in, even with the board switched off; the lights keep their power then. The header's 3V3 comes from a buck regulator (marked "3A MAX") after the switch and goes off with the board.
 
